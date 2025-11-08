@@ -199,11 +199,7 @@ const MainDashboard = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8" data-testid="main-dashboard">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-white">Dashboard</h1>
-          <p className="text-slate-400 mt-2">Submit and monitor ML workloads</p>
-        </div>
+      <div className="flex justify-end items-center">
         <Button
           onClick={() => fetchJobs(true)}
           disabled={refreshing}
