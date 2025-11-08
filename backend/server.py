@@ -83,6 +83,8 @@ class Job(BaseModel):
     estimated_cost: Optional[float] = None
     recommended_gpu: Optional[str] = None
     recommended_memory: Optional[str] = None
+    scout_results: Optional[dict] = None
+    optimizer_results: Optional[dict] = None
 
 class JobUpdate(BaseModel):
     status: Optional[JobStatus] = None
