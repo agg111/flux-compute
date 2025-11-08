@@ -408,8 +408,19 @@ async def scout_agent(workload_id: str, model_name: str, datasize: str, workload
         }
     )
     
-    # Update Supabase with scout results
-    update_workload_in_supabase(workload_id, {"scout_results": scout_results})
+    # Update Supabase with scout results (add to workload_data)
+    job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+    workload_json = {
+        'model_name': job['model_name'],
+        'datasize': job['datasize'],
+        'workload_type': job['workload_type'],
+        'duration': job['duration'],
+        'budget': job['budget'],
+        'precision': job.get('precision'),
+        'framework': job.get('framework'),
+        'scout_results': scout_results
+    }
+    update_workload_in_supabase(workload_id, workload_data=workload_json)
     
     logger.info(f"Scout Agent: Found {len(gpu_options)} GPU options for workload {workload_id}")
     
