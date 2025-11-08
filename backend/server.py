@@ -574,20 +574,16 @@ async def create_job(job_input: JobCreate):
     await db.jobs.insert_one(doc)
     
     # Save workload to Supabase
-    workload_data = {
-        'workload_id': job_obj.workload_id,
+    workload_json = {
         'model_name': job_obj.model_name,
         'datasize': job_obj.datasize,
         'workload_type': job_obj.workload_type,
         'duration': job_obj.duration,
         'budget': float(job_obj.budget),
         'precision': job_obj.precision,
-        'framework': job_obj.framework,
-        'status': job_obj.status,
-        'created_at': job_obj.created_at.isoformat(),
-        'updated_at': job_obj.updated_at.isoformat()
+        'framework': job_obj.framework
     }
-    save_workload_to_supabase(workload_data)
+    save_workload_to_supabase(job_obj.workload_id, workload_json, "PENDING")
     
     # Save initial plan to Supabase
     initial_plan = {
