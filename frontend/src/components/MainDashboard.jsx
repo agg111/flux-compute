@@ -16,11 +16,16 @@ import {
   Cpu, 
   Trash2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Sparkles,
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Settings,
+  HelpCircle,
+  Menu
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -28,6 +33,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const MainDashboard = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [jobs, setJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
