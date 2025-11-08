@@ -107,6 +107,145 @@ class StatusCheckCreate(BaseModel):
     client_name: str
 
 
+# Agent Functions
+async def scout_agent(workload_id: str, model_name: str, datasize: str, workload_type: str, budget: float):
+    """Scout Agent - Searches for available GPU resources from AWS and GCP"""
+    logger.info(f"Scout Agent: Starting resource search for workload {workload_id}")
+    
+    # Update status to Analyzing
+    await db.jobs.update_one(
+        {"workload_id": workload_id},
+        {"$set": {"status": JobStatus.ANALYZING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Simulate scout agent searching cloud providers
+    await asyncio.sleep(2)
+    
+    # Parse data size to estimate GPU requirements
+    datasize_value = float(''.join(filter(str.isdigit, datasize)))
+    datasize_unit = ''.join(filter(str.isalpha, datasize)).upper()
+    
+    # Convert to GB for comparison
+    datasize_gb = datasize_value
+    if datasize_unit == 'TB':
+        datasize_gb = datasize_value * 1024
+    elif datasize_unit == 'MB':
+        datasize_gb = datasize_value / 1024
+    
+    # Determine GPU requirements based on workload
+    gpu_options = []
+    
+    if workload_type in ["Training", "Fine-tuning"]:
+        if datasize_gb > 100 or "70b" in model_name.lower() or "65b" in model_name.lower():
+            gpu_options = [
+                {"provider": "AWS", "instance": "p4d.24xlarge", "gpu": "8x A100 (40GB)", "memory": "320GB", "cost_per_hour": 32.77},
+                {"provider": "AWS", "instance": "p4de.24xlarge", "gpu": "8x A100 (80GB)", "memory": "1152GB", "cost_per_hour": 40.96},
+                {"provider": "GCP", "instance": "a2-highgpu-8g", "gpu": "8x A100 (40GB)", "memory": "680GB", "cost_per_hour": 29.39},
+            ]
+        elif datasize_gb > 20 or "7b" in model_name.lower() or "13b" in model_name.lower():
+            gpu_options = [
+                {"provider": "AWS", "instance": "p3.8xlarge", "gpu": "4x V100 (16GB)", "memory": "244GB", "cost_per_hour": 12.24},
+                {"provider": "AWS", "instance": "g5.12xlarge", "gpu": "4x A10G (24GB)", "memory": "192GB", "cost_per_hour": 5.67},
+                {"provider": "GCP", "instance": "a2-highgpu-4g", "gpu": "4x A100 (40GB)", "memory": "340GB", "cost_per_hour": 14.69},
+            ]
+        else:
+            gpu_options = [
+                {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006},
+                {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526},
+                {"provider": "GCP", "instance": "n1-standard-8-t4", "gpu": "1x T4 (16GB)", "memory": "30GB", "cost_per_hour": 0.71},
+            ]
+    else:  # Inference or Embeddings
+        if "70b" in model_name.lower() or "65b" in model_name.lower():
+            gpu_options = [
+                {"provider": "AWS", "instance": "g5.12xlarge", "gpu": "4x A10G (24GB)", "memory": "192GB", "cost_per_hour": 5.67},
+                {"provider": "GCP", "instance": "a2-highgpu-2g", "gpu": "2x A100 (40GB)", "memory": "170GB", "cost_per_hour": 7.35},
+            ]
+        else:
+            gpu_options = [
+                {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006},
+                {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526},
+                {"provider": "GCP", "instance": "n1-standard-4-t4", "gpu": "1x T4 (16GB)", "memory": "15GB", "cost_per_hour": 0.58},
+            ]
+    
+    scout_results = {
+        "available_resources": gpu_options,
+        "search_timestamp": datetime.now(timezone.utc).isoformat(),
+        "providers_searched": ["AWS", "GCP"]
+    }
+    
+    # Update job with scout results
+    await db.jobs.update_one(
+        {"workload_id": workload_id},
+        {
+            "$set": {
+                "scout_results": scout_results,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    logger.info(f"Scout Agent: Found {len(gpu_options)} GPU options for workload {workload_id}")
+    
+    # Trigger optimizer agent
+    asyncio.create_task(optimizer_agent(workload_id, scout_results, budget))
+
+
+async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
+    """Optimizer Agent - Selects the best GPU resource based on cost and performance"""
+    logger.info(f"Optimizer Agent: Starting optimization for workload {workload_id}")
+    
+    # Update status to Optimizing
+    await db.jobs.update_one(
+        {"workload_id": workload_id},
+        {"$set": {"status": JobStatus.OPTIMIZING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Simulate optimizer analysis
+    await asyncio.sleep(2)
+    
+    available_resources = scout_results.get("available_resources", [])
+    
+    # Filter options within budget (assuming duration for cost calculation)
+    suitable_options = [
+        opt for opt in available_resources 
+        if opt["cost_per_hour"] * 2 <= budget  # Assume 2 hours minimum
+    ]
+    
+    if not suitable_options:
+        suitable_options = available_resources  # Use all if none fit budget
+    
+    # Select best option (balance between cost and performance)
+    best_option = min(suitable_options, key=lambda x: x["cost_per_hour"])
+    
+    # Calculate estimated cost
+    estimated_cost = best_option["cost_per_hour"] * 2  # Estimate 2 hours
+    
+    optimizer_results = {
+        "recommended_resource": best_option,
+        "estimated_cost": round(estimated_cost, 2),
+        "alternatives": [opt for opt in suitable_options if opt != best_option][:2],
+        "optimization_timestamp": datetime.now(timezone.utc).isoformat(),
+        "savings": round(max([opt["cost_per_hour"] for opt in suitable_options]) - best_option["cost_per_hour"], 2) if len(suitable_options) > 1 else 0
+    }
+    
+    # Update job with optimizer results and set to Running
+    await db.jobs.update_one(
+        {"workload_id": workload_id},
+        {
+            "$set": {
+                "optimizer_results": optimizer_results,
+                "status": JobStatus.RUNNING,
+                "recommended_gpu": best_option["gpu"],
+                "recommended_memory": best_option["memory"],
+                "estimated_cost": estimated_cost,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    logger.info(f"Optimizer Agent: Selected {best_option['instance']} for workload {workload_id}")
+
+
 # Routes
 @api_router.get("/")
 async def root():
