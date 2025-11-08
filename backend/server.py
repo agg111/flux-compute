@@ -457,6 +457,21 @@ async def create_job(job_input: JobCreate):
     
     await db.jobs.insert_one(doc)
     
+    # Save initial plan to Supabase
+    initial_plan = {
+        'workload_id': job_obj.workload_id,
+        'model_name': job_obj.model_name,
+        'datasize': job_obj.datasize,
+        'workload_type': job_obj.workload_type,
+        'duration': job_obj.duration,
+        'budget': job_obj.budget,
+        'precision': job_obj.precision,
+        'framework': job_obj.framework,
+        'status': 'initial',
+        'optimization_version': 1
+    }
+    save_optimization_plan_to_supabase(job_obj.workload_id, initial_plan)
+    
     # Trigger scout agent in background
     asyncio.create_task(scout_agent(
         job_obj.workload_id,
