@@ -201,7 +201,52 @@ const MainDashboard = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8" data-testid="main-dashboard">
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <div 
+        className={`${
+          sidebarOpen ? 'w-64' : 'w-16'
+        } bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out flex flex-col`}
+      >
+        {/* Sidebar Header */}
+        <div className="p-4 flex items-center justify-between border-b border-slate-800">
+          {sidebarOpen && (
+            <span className="text-sm font-semibold text-slate-200">Menu</span>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+            data-testid="toggle-sidebar"
+          >
+            {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </Button>
+        </div>
+
+        {/* Sidebar Menu */}
+        <nav className="flex-1 p-4 space-y-2">
+          <button
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            data-testid="sidebar-settings"
+          >
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            {sidebarOpen && <span className="text-sm font-medium">Settings</span>}
+          </button>
+          
+          <button
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            data-testid="sidebar-help"
+          >
+            <HelpCircle className="w-5 h-5 flex-shrink-0" />
+            {sidebarOpen && <span className="text-sm font-medium">Help</span>}
+          </button>
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-7xl mx-auto px-4 py-8 space-y-8" data-testid="main-dashboard">
       {/* Submit Job Form - First Card */}
       <Card className="border border-slate-800 bg-slate-900" data-testid="job-submission-form">
         <CardHeader className="pb-6">
