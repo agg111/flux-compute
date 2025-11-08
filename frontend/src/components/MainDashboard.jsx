@@ -536,6 +536,40 @@ const MainDashboard = () => {
                         </div>
                       )}
 
+                      {/* Agent Recommendations */}
+                      {job.optimizer_results && job.optimizer_results.recommended_resource && (
+                        <div className="mt-3 p-3 bg-slate-800 border border-blue-900 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Sparkles className="w-4 h-4 text-blue-400" />
+                            <span className="text-sm font-semibold text-blue-400">Optimized Resource</span>
+                          </div>
+                          <div className="space-y-1 text-sm text-slate-300">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Provider:</span>
+                              <span className="font-medium">{job.optimizer_results.recommended_resource.provider}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Instance:</span>
+                              <span className="font-medium">{job.optimizer_results.recommended_resource.instance}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">GPU:</span>
+                              <span className="font-medium">{job.optimizer_results.recommended_resource.gpu}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Cost:</span>
+                              <span className="font-medium text-blue-400">${job.optimizer_results.recommended_resource.cost_per_hour}/hr</span>
+                            </div>
+                            {job.optimizer_results.savings > 0 && (
+                              <div className="flex justify-between pt-1 border-t border-slate-700">
+                                <span className="text-slate-400">Savings:</span>
+                                <span className="font-medium text-green-400">${job.optimizer_results.savings}/hr</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <p className="text-xs text-slate-500" data-testid={`job-created-at-${job.workload_id}`}>
                         Created {format(new Date(job.created_at), "PPp")}
                       </p>
