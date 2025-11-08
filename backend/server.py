@@ -289,6 +289,9 @@ async def scout_agent(workload_id: str, model_name: str, datasize: str, workload
         {"$set": {"status": JobStatus.SCOUTING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
+    # Update Supabase
+    update_workload_in_supabase(workload_id, {"status": JobStatus.SCOUTING})
+    
     # Simulate scout agent searching cloud providers
     await asyncio.sleep(2)
     
