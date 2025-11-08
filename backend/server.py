@@ -382,7 +382,7 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     
     # Fetch model details from Hugging Face
     logger.info(f"Optimizer Agent: Fetching model details from HuggingFace for {model_name}")
-    model_details = await asyncio.to_thread(fetch_huggingface_model_details, model_name)
+    model_details = fetch_huggingface_model_details(model_name)
     logger.info(f"Optimizer Agent: Model details - {model_details}")
     
     # Simulate optimizer analysis with model insights
