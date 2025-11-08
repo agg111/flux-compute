@@ -25,6 +25,11 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Supabase connection
+supabase_url = os.environ.get('SUPABASE_URL')
+supabase_key = os.environ.get('SUPABASE_KEY')
+supabase: Client = create_client(supabase_url, supabase_key) if supabase_url and supabase_key else None
+
 # Create the main app without a prefix
 app = FastAPI()
 
