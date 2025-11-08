@@ -232,10 +232,10 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     """Optimizer Agent - Selects the best GPU resource based on cost and performance"""
     logger.info(f"Optimizer Agent: Starting optimization for workload {workload_id}")
     
-    # Update status to Optimizing
+    # Update status to Analyzing
     await db.jobs.update_one(
         {"workload_id": workload_id},
-        {"$set": {"status": JobStatus.OPTIMIZING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {"status": JobStatus.ANALYZING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
     # Simulate optimizer analysis
