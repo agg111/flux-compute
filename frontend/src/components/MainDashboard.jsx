@@ -438,57 +438,6 @@ const MainDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border border-slate-800 bg-slate-900">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-400">Total Jobs</p>
-                <p className="text-3xl font-bold mt-2 text-white" data-testid="stat-total-jobs">{stats.total}</p>
-              </div>
-              <Activity className="w-10 h-10 text-slate-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-800 bg-slate-900">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-400">Active Jobs</p>
-                <p className="text-3xl font-bold mt-2 text-blue-400" data-testid="stat-active-jobs">{stats.running}</p>
-              </div>
-              <Loader2 className="w-10 h-10 text-slate-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-800 bg-slate-900">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-400">Completed</p>
-                <p className="text-3xl font-bold mt-2 text-white" data-testid="stat-completed-jobs">{stats.completed}</p>
-              </div>
-              <CheckCircle2 className="w-10 h-10 text-slate-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-slate-800 bg-slate-900">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-400">Total Budget</p>
-                <p className="text-3xl font-bold mt-2 text-white" data-testid="stat-total-budget">${stats.totalBudget.toFixed(2)}</p>
-              </div>
-              <DollarSign className="w-10 h-10 text-slate-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Jobs List */}
       <div className="space-y-4">
         <h2 className="text-2xl font-bold text-white">Recent Jobs</h2>
