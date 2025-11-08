@@ -243,6 +243,41 @@ def get_optimization_plan_from_supabase(workload_id: str) -> dict:
         return None
 
 
+def save_workload_to_supabase(workload_data: dict):
+    """Save workload to Supabase"""
+    try:
+        if not supabase:
+            logger.warning("Supabase not configured")
+            return
+        
+        # Upsert the workload
+        result = supabase.table('workloads').upsert(workload_data).execute()
+        logger.info(f"Saved workload to Supabase: {workload_data['workload_id']}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error saving workload to Supabase: {str(e)}")
+        return None
+
+
+def update_workload_in_supabase(workload_id: str, updates: dict):
+    """Update workload in Supabase"""
+    try:
+        if not supabase:
+            logger.warning("Supabase not configured")
+            return
+        
+        updates['updated_at'] = datetime.now(timezone.utc).isoformat()
+        
+        result = supabase.table('workloads').update(updates).eq('workload_id', workload_id).execute()
+        logger.info(f"Updated workload in Supabase: {workload_id}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error updating workload in Supabase: {str(e)}")
+        return None
+
+
 # Agent Functions
 async def scout_agent(workload_id: str, model_name: str, datasize: str, workload_type: str, budget: float):
     """Scout Agent - Searches for available GPU resources from AWS and GCP"""
