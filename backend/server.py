@@ -510,6 +510,15 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         }
     )
     
+    # Update Supabase
+    update_workload_in_supabase(workload_id, {
+        "optimizer_results": optimizer_results,
+        "status": JobStatus.FOUND_BETTER_DEAL,
+        "recommended_gpu": best_option["gpu"],
+        "recommended_memory": best_option["memory"],
+        "estimated_cost": float(estimated_cost)
+    })
+    
     logger.info(f"Optimizer Agent: Selected {best_option['instance']} for workload {workload_id}")
     
     # Simulate migration phase
@@ -518,6 +527,7 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         {"workload_id": workload_id},
         {"$set": {"status": JobStatus.MIGRATING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
+    update_workload_in_supabase(workload_id, {"status": JobStatus.MIGRATING})
     
     # Finally set to Running
     await asyncio.sleep(1)
@@ -525,6 +535,7 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         {"workload_id": workload_id},
         {"$set": {"status": JobStatus.RUNNING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
+    update_workload_in_supabase(workload_id, {"status": JobStatus.RUNNING})
 
 
 # Routes
