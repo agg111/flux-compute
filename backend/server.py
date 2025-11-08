@@ -435,8 +435,24 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         "alternatives": [opt for opt in suitable_options if opt != best_option][:2],
         "optimization_timestamp": datetime.now(timezone.utc).isoformat(),
         "savings": round(max([opt["cost_per_hour"] for opt in suitable_options]) - best_option["cost_per_hour"], 2) if len(suitable_options) > 1 else 0,
-        "optimization_percentage": optimization_percentage
+        "optimization_percentage": optimization_percentage,
+        "model_insights": model_details
     }
+    
+    # Save improved plan to Supabase
+    improved_plan = {
+        'workload_id': workload_id,
+        'model_name': model_name,
+        'model_details': model_details,
+        'scout_options_count': len(available_resources),
+        'selected_resource': best_option,
+        'optimization_percentage': optimization_percentage,
+        'estimated_cost': estimated_cost,
+        'status': 'optimized',
+        'optimization_version': (current_plan.get('plan_data', {}).get('optimization_version', 1) + 1) if current_plan else 2
+    }
+    save_optimization_plan_to_supabase(workload_id, improved_plan)
+    logger.info(f"Optimizer Agent: Saved improved plan to Supabase (v{improved_plan['optimization_version']})")
     
     # Update status to Found Better Deal first
     await db.jobs.update_one(
