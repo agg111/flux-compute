@@ -200,9 +200,6 @@ const MainDashboard = () => {
       <Card className="border border-slate-800 bg-slate-900" data-testid="job-submission-form">
         <CardHeader className="pb-6">
           <CardTitle className="text-lg font-semibold text-slate-200 tracking-wide">Submit New Job</CardTitle>
-          <CardDescription className="text-slate-400 mt-1 text-sm">
-            Configure your ML workload for resource optimization
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
