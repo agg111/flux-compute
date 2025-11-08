@@ -12,6 +12,9 @@ from datetime import datetime, timezone
 from enum import Enum
 import asyncio
 import random
+import requests
+from bs4 import BeautifulSoup
+from supabase import create_client, Client
 
 
 ROOT_DIR = Path(__file__).parent
