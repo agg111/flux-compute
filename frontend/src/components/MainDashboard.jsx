@@ -395,10 +395,7 @@ const MainDashboard = () => {
                   Submitting...
                 </span>
               ) : (
-                <span className="flex items-center gap-2">
-                  <Rocket className="w-5 h-5" />
-                  Submit Job
-                </span>
+                "Submit Job"
               )}
             </Button>
           </form>
