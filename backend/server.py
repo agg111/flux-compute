@@ -118,7 +118,7 @@ class StatusCheckCreate(BaseModel):
 
 
 # Utility Functions
-async def fetch_huggingface_model_details(model_name: str) -> dict:
+def fetch_huggingface_model_details(model_name: str) -> dict:
     """Fetch model details from Hugging Face"""
     try:
         # Try to find the model on Hugging Face
