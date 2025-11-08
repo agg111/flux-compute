@@ -561,6 +561,8 @@ const MainDashboard = () => {
         )}
       </div>
     </div>
+    </div>
+    </div>
   );
 };
 
