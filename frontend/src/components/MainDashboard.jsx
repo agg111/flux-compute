@@ -198,19 +198,6 @@ const MainDashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8" data-testid="main-dashboard">
-      {/* Header */}
-      <div className="flex justify-end items-center">
-        <Button
-          onClick={() => fetchJobs(true)}
-          disabled={refreshing}
-          data-testid="refresh-jobs-button"
-          className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-
       {/* Submit Job Form - First Card */}
       <Card className="border border-slate-800 bg-slate-900" data-testid="job-submission-form">
         <CardHeader className="space-y-2 pb-6">
