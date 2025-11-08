@@ -38,8 +38,10 @@ class WorkloadType(str, Enum):
 
 class JobStatus(str, Enum):
     PENDING = "Pending"
+    SCOUTING = "Scouting"
     ANALYZING = "Analyzing"
-    OPTIMIZING = "Optimizing"
+    FOUND_BETTER_DEAL = "Found Better Deal"
+    MIGRATING = "Migrating"
     RUNNING = "Running"
     COMPLETED = "Completed"
     FAILED = "Failed"
