@@ -456,7 +456,7 @@ const MainDashboard = () => {
 
       {/* Jobs List */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-slate-200 tracking-wide">Current Jobs</h2>
+        <div className="text-lg font-semibold text-slate-200 tracking-wide leading-none">Current Jobs</div>
         
         {jobs.length === 0 ? (
           <Card className="border border-slate-800 bg-slate-900">
