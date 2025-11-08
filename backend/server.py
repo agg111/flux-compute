@@ -372,7 +372,20 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         {"$set": {"status": JobStatus.ANALYZING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
-    # Simulate optimizer analysis
+    # Get current plan from Supabase
+    current_plan = get_optimization_plan_from_supabase(workload_id)
+    logger.info(f"Optimizer Agent: Retrieved current plan from Supabase")
+    
+    # Get job details to fetch model information
+    job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+    model_name = job.get('model_name', '')
+    
+    # Fetch model details from Hugging Face
+    logger.info(f"Optimizer Agent: Fetching model details from HuggingFace for {model_name}")
+    model_details = await asyncio.to_thread(fetch_huggingface_model_details, model_name)
+    logger.info(f"Optimizer Agent: Model details - {model_details}")
+    
+    # Simulate optimizer analysis with model insights
     await asyncio.sleep(2)
     
     available_resources = scout_results.get("available_resources", [])
