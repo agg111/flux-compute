@@ -537,14 +537,23 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         }
     )
     
-    # Update Supabase
-    update_workload_in_supabase(workload_id, {
-        "optimizer_results": optimizer_results,
-        "status": JobStatus.FOUND_BETTER_DEAL,
-        "recommended_gpu": best_option["gpu"],
-        "recommended_memory": best_option["memory"],
-        "estimated_cost": float(estimated_cost)
-    })
+    # Update Supabase with full workload data including optimizer results
+    job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+    workload_json = {
+        'model_name': job['model_name'],
+        'datasize': job['datasize'],
+        'workload_type': job['workload_type'],
+        'duration': job['duration'],
+        'budget': job['budget'],
+        'precision': job.get('precision'),
+        'framework': job.get('framework'),
+        'scout_results': job.get('scout_results'),
+        'optimizer_results': optimizer_results,
+        'recommended_gpu': best_option["gpu"],
+        'recommended_memory': best_option["memory"],
+        'estimated_cost': float(estimated_cost)
+    }
+    update_workload_in_supabase(workload_id, status="RUNNING", workload_data=workload_json)
     
     logger.info(f"Optimizer Agent: Selected {best_option['instance']} for workload {workload_id}")
     
@@ -554,7 +563,6 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         {"workload_id": workload_id},
         {"$set": {"status": JobStatus.MIGRATING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    update_workload_in_supabase(workload_id, {"status": JobStatus.MIGRATING})
     
     # Finally set to Running
     await asyncio.sleep(1)
@@ -562,7 +570,8 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         {"workload_id": workload_id},
         {"$set": {"status": JobStatus.RUNNING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    update_workload_in_supabase(workload_id, {"status": JobStatus.RUNNING})
+    # Job is complete from optimization perspective - set to COMPLETE in Supabase
+    update_workload_in_supabase(workload_id, status="COMPLETE")
 
 
 # Routes
