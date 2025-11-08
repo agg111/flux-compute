@@ -16,7 +16,7 @@ const Layout = ({ children }) => {
                 <Activity className="w-6 h-6 text-white" />
               </div>
               <span className="text-xl font-bold text-white">
-                ML Workload Manager
+                Dashboard
               </span>
             </div>
           </div>
