@@ -166,8 +166,10 @@ const MainDashboard = () => {
   const getStatusColor = (status) => {
     const colors = {
       "Pending": "bg-slate-700 text-slate-200 border-slate-600",
+      "Scouting": "bg-blue-900/50 text-blue-200 border-blue-700",
       "Analyzing": "bg-blue-900/50 text-blue-200 border-blue-700",
-      "Optimizing": "bg-blue-900/50 text-blue-200 border-blue-700",
+      "Found Better Deal": "bg-green-900/50 text-green-200 border-green-700",
+      "Migrating": "bg-blue-900/50 text-blue-200 border-blue-700",
       "Running": "bg-blue-900/50 text-blue-200 border-blue-700",
       "Completed": "bg-slate-700 text-slate-200 border-slate-600",
       "Failed": "bg-slate-700 text-slate-200 border-slate-600",
@@ -179,8 +181,10 @@ const MainDashboard = () => {
   const getStatusIcon = (status) => {
     const icons = {
       "Pending": <Clock className="w-4 h-4" />,
+      "Scouting": <Loader2 className="w-4 h-4 animate-spin" />,
       "Analyzing": <Loader2 className="w-4 h-4 animate-spin" />,
-      "Optimizing": <Activity className="w-4 h-4" />,
+      "Found Better Deal": <Sparkles className="w-4 h-4" />,
+      "Migrating": <Activity className="w-4 h-4" />,
       "Running": <Activity className="w-4 h-4" />,
       "Completed": <CheckCircle2 className="w-4 h-4" />,
       "Failed": <XCircle className="w-4 h-4" />,
