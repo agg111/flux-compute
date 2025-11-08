@@ -394,6 +394,9 @@ async def scout_agent(workload_id: str, model_name: str, datasize: str, workload
         }
     )
     
+    # Update Supabase with scout results
+    update_workload_in_supabase(workload_id, {"scout_results": scout_results})
+    
     logger.info(f"Scout Agent: Found {len(gpu_options)} GPU options for workload {workload_id}")
     
     # Trigger optimizer agent
