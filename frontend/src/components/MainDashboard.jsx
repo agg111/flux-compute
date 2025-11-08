@@ -540,6 +540,16 @@ const MainDashboard = () => {
                         </div>
                       )}
 
+                      {/* Cost Optimization Badge */}
+                      {job.optimizer_results && job.optimizer_results.optimization_percentage > 0 && (
+                        <div className="mt-3">
+                          <Badge className="bg-green-900/50 text-green-200 border-green-700 text-xs font-semibold px-3 py-1">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Optimized cost by {job.optimizer_results.optimization_percentage}%
+                          </Badge>
+                        </div>
+                      )}
+
                       {/* Agent Recommendations */}
                       {job.optimizer_results && job.optimizer_results.recommended_resource && (
                         <div className="mt-3 p-3 bg-slate-800 border border-blue-900 rounded-lg">
