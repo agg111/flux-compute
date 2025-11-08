@@ -399,8 +399,28 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     if not suitable_options:
         suitable_options = available_resources  # Use all if none fit budget
     
-    # Select best option (balance between cost and performance)
-    best_option = min(suitable_options, key=lambda x: x["cost_per_hour"])
+    # Use model details to make smarter selection
+    best_option = None
+    
+    # Check if model is large (70B+) and needs high-end GPUs
+    if model_details.get('size_billions', 0) >= 70 or '70b' in model_name.lower() or '65b' in model_name.lower():
+        # Prefer A100 GPUs for large models
+        a100_options = [opt for opt in suitable_options if 'A100' in opt['gpu']]
+        if a100_options:
+            best_option = min(a100_options, key=lambda x: x["cost_per_hour"])
+            logger.info(f"Optimizer Agent: Selected A100 for large model ({model_name})")
+    
+    # Check if it's a diffusion model
+    elif model_details.get('architecture') == 'Diffusion' or 'diffusion' in model_name.lower():
+        # Diffusion models benefit from A10G or T4
+        preferred_options = [opt for opt in suitable_options if 'A10G' in opt['gpu'] or 'T4' in opt['gpu']]
+        if preferred_options:
+            best_option = min(preferred_options, key=lambda x: x["cost_per_hour"])
+            logger.info(f"Optimizer Agent: Selected GPU optimized for diffusion model")
+    
+    # Default: Select cheapest suitable option
+    if not best_option:
+        best_option = min(suitable_options, key=lambda x: x["cost_per_hour"])
     
     # Calculate estimated cost and optimization percentage
     estimated_cost = best_option["cost_per_hour"] * 2  # Estimate 2 hours
