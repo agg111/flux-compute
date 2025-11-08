@@ -255,24 +255,29 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     # Select best option (balance between cost and performance)
     best_option = min(suitable_options, key=lambda x: x["cost_per_hour"])
     
-    # Calculate estimated cost
+    # Calculate estimated cost and optimization percentage
     estimated_cost = best_option["cost_per_hour"] * 2  # Estimate 2 hours
+    
+    # Calculate optimization percentage (savings vs most expensive option)
+    max_cost = max([opt["cost_per_hour"] for opt in suitable_options])
+    optimization_percentage = round(((max_cost - best_option["cost_per_hour"]) / max_cost) * 100, 1) if len(suitable_options) > 1 and max_cost > 0 else 0
     
     optimizer_results = {
         "recommended_resource": best_option,
         "estimated_cost": round(estimated_cost, 2),
         "alternatives": [opt for opt in suitable_options if opt != best_option][:2],
         "optimization_timestamp": datetime.now(timezone.utc).isoformat(),
-        "savings": round(max([opt["cost_per_hour"] for opt in suitable_options]) - best_option["cost_per_hour"], 2) if len(suitable_options) > 1 else 0
+        "savings": round(max([opt["cost_per_hour"] for opt in suitable_options]) - best_option["cost_per_hour"], 2) if len(suitable_options) > 1 else 0,
+        "optimization_percentage": optimization_percentage
     }
     
-    # Update job with optimizer results and set to Running
+    # Update status to Found Better Deal first
     await db.jobs.update_one(
         {"workload_id": workload_id},
         {
             "$set": {
                 "optimizer_results": optimizer_results,
-                "status": JobStatus.RUNNING,
+                "status": JobStatus.FOUND_BETTER_DEAL,
                 "recommended_gpu": best_option["gpu"],
                 "recommended_memory": best_option["memory"],
                 "estimated_cost": estimated_cost,
@@ -282,6 +287,20 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     )
     
     logger.info(f"Optimizer Agent: Selected {best_option['instance']} for workload {workload_id}")
+    
+    # Simulate migration phase
+    await asyncio.sleep(1)
+    await db.jobs.update_one(
+        {"workload_id": workload_id},
+        {"$set": {"status": JobStatus.MIGRATING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Finally set to Running
+    await asyncio.sleep(1)
+    await db.jobs.update_one(
+        {"workload_id": workload_id},
+        {"$set": {"status": JobStatus.RUNNING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
 
 
 # Routes
