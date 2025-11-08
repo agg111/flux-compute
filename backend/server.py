@@ -412,6 +412,7 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         {"workload_id": workload_id},
         {"$set": {"status": JobStatus.ANALYZING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
+    update_workload_in_supabase(workload_id, {"status": JobStatus.ANALYZING})
     
     # Get current plan from Supabase
     current_plan = get_optimization_plan_from_supabase(workload_id)
