@@ -114,10 +114,10 @@ async def scout_agent(workload_id: str, model_name: str, datasize: str, workload
     """Scout Agent - Searches for available GPU resources from AWS and GCP"""
     logger.info(f"Scout Agent: Starting resource search for workload {workload_id}")
     
-    # Update status to Analyzing
+    # Update status to Scouting
     await db.jobs.update_one(
         {"workload_id": workload_id},
-        {"$set": {"status": JobStatus.ANALYZING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {"status": JobStatus.SCOUTING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
     # Simulate scout agent searching cloud providers
