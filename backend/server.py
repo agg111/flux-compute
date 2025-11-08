@@ -265,6 +265,16 @@ async def create_job(job_input: JobCreate):
     doc['updated_at'] = doc['updated_at'].isoformat()
     
     await db.jobs.insert_one(doc)
+    
+    # Trigger scout agent in background
+    asyncio.create_task(scout_agent(
+        job_obj.workload_id,
+        job_obj.model_name,
+        job_obj.datasize,
+        job_obj.workload_type,
+        job_obj.budget
+    ))
+    
     return job_obj
 
 
