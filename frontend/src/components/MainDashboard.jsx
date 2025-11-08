@@ -185,13 +185,6 @@ const MainDashboard = () => {
     return icons[status] || <Clock className="w-4 h-4" />;
   };
 
-  const stats = {
-    total: jobs.length,
-    running: jobs.filter(j => j.status === "Running" || j.status === "Analyzing" || j.status === "Optimizing").length,
-    completed: jobs.filter(j => j.status === "Completed").length,
-    totalBudget: jobs.reduce((sum, j) => sum + j.budget, 0)
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" data-testid="loading-spinner">
