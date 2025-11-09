@@ -54,9 +54,9 @@ if aws_access_key and aws_secret_key:
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
-        logger.info(f"AWS EC2 client initialized for region {aws_region}")
+        print(f"AWS EC2 client initialized for region {aws_region}")
     except Exception as e:
-        logger.error(f"Failed to initialize AWS EC2 client: {str(e)}")
+        print(f"Failed to initialize AWS EC2 client: {str(e)}")
 
 # Create the main app without a prefix
 app = FastAPI()
