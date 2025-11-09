@@ -923,27 +923,17 @@ async def deployer_agent(workload_id: str, target_resource: dict, migration_deta
             }
         )
         
-        # Update Supabase
-        job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
-        workload_json = {
-            'model_name': job['model_name'],
-            'datasize': job['datasize'],
-            'workload_type': job['workload_type'],
-            'duration': job['duration'],
-            'budget': job['budget'],
-            'precision': job.get('precision'),
-            'framework': job.get('framework'),
-            'scout_results': job.get('scout_results'),
-            'optimizer_results': optimizer_results,
-            'recommended_gpu': target_resource["gpu"],
-            'recommended_memory': target_resource["memory"],
-            'estimated_cost': optimizer_results.get('estimated_cost'),
-            'migration_details': migration_details,
-            'deployment_details': deployment_details
-        }
-        update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
+        # Update deployment details in job
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {"deployment_details": deployment_details}}
+        )
         
-        logger.info(f"Deployer Agent: ✅ All health checks passed! Workload {workload_id} is ready and running")
+        logger.info(f"Deployer Agent: ✅ All health checks passed! Workload {workload_id} is ready")
+        logger.info(f"Deployer Agent: Triggering UserProxy Agent to update endpoint routing")
+        
+        # Trigger UserProxy Agent to update endpoint routing
+        asyncio.create_task(user_proxy_agent(workload_id, deployment_details, migration_details))
         
     except Exception as e:
         logger.error(f"Deployer Agent: Error during deployment - {str(e)}")
