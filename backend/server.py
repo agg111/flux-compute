@@ -675,6 +675,14 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
             "provisioning_started": datetime.now(timezone.utc).isoformat()
         }
         
+        # Add EC2 details if available
+        if ec2_result and ec2_result.get('status') == 'success':
+            migration_details["ec2_instance_id"] = ec2_result["instance_id"]
+            migration_details["ec2_public_ip"] = ec2_result["public_ip"]
+            migration_details["ec2_private_ip"] = ec2_result["private_ip"]
+            migration_details["ec2_availability_zone"] = ec2_result["availability_zone"]
+            migration_details["ec2_launch_time"] = ec2_result["launch_time"]
+        
         # Phase 2: Migrating workload
         await db.jobs.update_one(
             {"workload_id": workload_id},
