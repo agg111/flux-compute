@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup
 from supabase import create_client, Client
 import boto3
 from botocore.exceptions import ClientError
+import json
 
 
 ROOT_DIR = Path(__file__).parent
