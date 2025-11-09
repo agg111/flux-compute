@@ -1110,7 +1110,8 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
             ec2_result = await asyncio.to_thread(
                 provision_ec2_instance, 
                 test_instance_type, 
-                workload_id
+                workload_id,
+                True  # deploy_training=True to run linear regression
             )
             
             if ec2_result.get('status') == 'error':
