@@ -949,10 +949,14 @@ async def deployer_agent(workload_id: str, target_resource: dict, migration_deta
 
 
 async def migration_agent(workload_id: str, target_resource: dict, optimizer_results: dict):
-    """Migration Agent - Provisions new instances and migrates the workload"""
+    """Migration Agent - Provisions new instances and runs validation test"""
     logger.info(f"Migration Agent: Starting migration for workload {workload_id}")
     
     try:
+        # Get the optimization plan from DB
+        current_plan = get_optimization_plan_from_supabase(workload_id)
+        logger.info(f"Migration Agent: Retrieved plan from database - version {current_plan.get('plan_data', {}).get('optimization_version', 'unknown') if current_plan else 'N/A'}")
+        
         # Phase 1: Provisioning new instances
         await db.jobs.update_one(
             {"workload_id": workload_id},
@@ -960,15 +964,14 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         )
         update_workload_in_supabase(workload_id, status="RUNNING")
         
-        logger.info(f"Migration Agent: Provisioning {target_resource['instance']} on {target_resource['provider']}")
+        # ALWAYS use t3.micro for testing/validation
+        test_instance_type = 't3.micro'
+        logger.info(f"Migration Agent: Provisioning {test_instance_type} for validation test (target would be {target_resource['instance']})")
         
-        # Provision real EC2 instance if AWS
+        # Provision real EC2 instance
         ec2_result = None
         if target_resource['provider'] == 'AWS':
-            # Use t3.small for testing since GPU instances require limit increase
-            # In production, use target_resource['instance']
-            test_instance_type = 't3.small'
-            logger.info(f"Migration Agent: Launching EC2 instance {test_instance_type} (testing with general purpose, target was {target_resource['instance']})")
+            logger.info(f"Migration Agent: Launching EC2 instance {test_instance_type}")
             
             ec2_result = await asyncio.to_thread(
                 provision_ec2_instance, 
@@ -978,14 +981,16 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
             
             if ec2_result.get('status') == 'error':
                 logger.error(f"Migration Agent: Failed to provision EC2 - {ec2_result.get('message')}")
-                # Don't fail the job, just log and continue with simulation
-                logger.warning(f"Migration Agent: Continuing with simulated provisioning")
-                await asyncio.sleep(2)
-            else:
-                logger.info(f"Migration Agent: EC2 instance {ec2_result['instance_id']} provisioned successfully")
+                await db.jobs.update_one(
+                    {"workload_id": workload_id},
+                    {"$set": {"status": JobStatus.FAILED, "updated_at": datetime.now(timezone.utc).isoformat()}}
+                )
+                return
+            
+            logger.info(f"Migration Agent: EC2 instance {ec2_result['instance_id']} provisioned successfully")
         else:
             # For GCP, simulate for now
-            logger.info(f"Migration Agent: Simulating GCP provisioning (not implemented yet)")
+            logger.info(f"Migration Agent: GCP provisioning not implemented yet, using AWS")
             await asyncio.sleep(2)
         
         migration_details = {
