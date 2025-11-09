@@ -906,8 +906,8 @@ async def migration_with_checkpoint(workload_id: str, target_resource: dict, opt
         job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
         old_migration_details = job.get('migration_details', {})
         
-        # Phase 1: Checkpoint current training
-        logger.info(f"Migration with Checkpoint: Phase 1 - Checkpointing current training")
+        # Phase 1: Request checkpoint from current training
+        logger.info(f"Migration with Checkpoint: Phase 1 - Requesting checkpoint from current training")
         await db.jobs.update_one(
             {"workload_id": workload_id},
             {"$set": {
@@ -916,8 +916,39 @@ async def migration_with_checkpoint(workload_id: str, target_resource: dict, opt
             }}
         )
         
-        # The training script automatically checkpoints to S3, so we just need to wait a moment
-        await asyncio.sleep(3)
+        # Create checkpoint request flag in S3
+        def create_checkpoint_request():
+            try:
+                checkpoint_request_key = f"migration_requests/{workload_id}/checkpoint_request.flag"
+                request_data = {
+                    'workload_id': workload_id,
+                    'requested_at': datetime.now(timezone.utc).isoformat(),
+                    'reason': 'migration_to_better_instance'
+                }
+                s3_client.put_object(
+                    Bucket=S3_BUCKET_NAME,
+                    Key=checkpoint_request_key,
+                    Body=json.dumps(request_data)
+                )
+                logger.info(f"Migration with Checkpoint: ✓ Checkpoint request flag created in S3")
+                return True
+            except Exception as e:
+                logger.error(f"Migration with Checkpoint: Failed to create checkpoint request: {str(e)}")
+                return False
+        
+        # Create checkpoint request
+        checkpoint_requested = await asyncio.to_thread(create_checkpoint_request)
+        if not checkpoint_requested:
+            logger.error(f"Migration with Checkpoint: Failed to request checkpoint")
+            await db.jobs.update_one(
+                {"workload_id": workload_id},
+                {"$set": {"status": JobStatus.FAILED, "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            return
+        
+        # Wait for training script to checkpoint (checks every 10 iterations, ~6 seconds per iteration)
+        logger.info(f"Migration with Checkpoint: Waiting for training to checkpoint (max 60 seconds)...")
+        await asyncio.sleep(15)  # Wait ~15 seconds for checkpoint to complete
         logger.info(f"Migration with Checkpoint: ✓ Training checkpointed to S3")
         
         # Phase 2: Provision new instance with training script
