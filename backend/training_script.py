@@ -36,7 +36,8 @@ s3_client = boto3.client(
 print(f"Starting Linear Regression Training for workload: {WORKLOAD_ID}")
 print(f"S3 Bucket: {S3_BUCKET}")
 print(f"Total Iterations: {TOTAL_ITERATIONS}")
-print(f"Checkpoint Interval: {CHECKPOINT_INTERVAL} iterations")
+print(f"Migration Check Interval: {CHECK_MIGRATION_INTERVAL} iterations")
+print(f"Note: Checkpoints saved to S3 only when migration is requested")
 
 
 def save_checkpoint_to_s3(checkpoint_data, iteration):
