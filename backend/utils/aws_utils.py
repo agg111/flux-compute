@@ -389,18 +389,29 @@ def provision_gcp_instance(instance_type: str, workload_id: str, deploy_training
 
 
 def terminate_gcp_instance(instance_id: str) -> dict:
-    """Simulate GCP instance termination"""
+    """Terminate a GCP Compute Engine instance"""
     try:
-        logger.info(f"Simulating GCP instance termination: {instance_id}")
+        from google.cloud import compute_v1
+        from config.gcp_config import compute_client, gcp_project_id, gcp_zone
         
-        import time
-        time.sleep(2)
+        if not compute_client:
+            logger.error("GCP Compute client not initialized")
+            return {"status": "error", "message": "GCP not configured"}
         
-        logger.info(f"GCP instance {instance_id} terminated (simulated)")
+        logger.info(f"Terminating GCP instance: {instance_id}")
+        
+        operation = compute_client.delete(
+            project=gcp_project_id,
+            zone=gcp_zone,
+            instance=instance_id
+        )
+        
+        logger.info(f"GCP instance {instance_id} deletion initiated")
+        
         return {
             "status": "success",
             "instance_id": instance_id,
-            "state": "terminated"
+            "state": "terminating"
         }
         
     except Exception as e:
