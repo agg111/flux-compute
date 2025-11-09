@@ -101,6 +101,37 @@ def load_checkpoint_from_s3():
         return None, 0
 
 
+def check_migration_request():
+    """Check if backend has requested a migration checkpoint"""
+    try:
+        checkpoint_request_key = f"migration_requests/{WORKLOAD_ID}/checkpoint_request.flag"
+        
+        # Try to get the flag file
+        s3_client.head_object(Bucket=S3_BUCKET, Key=checkpoint_request_key)
+        print(f"🔔 Migration request detected!")
+        return True
+    except s3_client.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            # No checkpoint request
+            return False
+        else:
+            print(f"✗ Error checking migration request: {str(e)}")
+            return False
+    except Exception as e:
+        print(f"✗ Error checking migration request: {str(e)}")
+        return False
+
+
+def clear_migration_request():
+    """Clear the migration request flag after checkpointing"""
+    try:
+        checkpoint_request_key = f"migration_requests/{WORKLOAD_ID}/checkpoint_request.flag"
+        s3_client.delete_object(Bucket=S3_BUCKET, Key=checkpoint_request_key)
+        print(f"✓ Migration request flag cleared")
+    except Exception as e:
+        print(f"✗ Error clearing migration request: {str(e)}")
+
+
 def generate_synthetic_data(n_samples=10000, n_features=50):
     """Generate synthetic data for linear regression"""
     np.random.seed(42)
