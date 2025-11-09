@@ -39,6 +39,7 @@ aws_region = os.environ.get('AWS_REGION', 'us-east-2')
 
 ec2_client = None
 ec2_resource = None
+s3_client = None
 
 if aws_access_key and aws_secret_key:
     try:
@@ -54,9 +55,16 @@ if aws_access_key and aws_secret_key:
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
         print(f"AWS EC2 client initialized for region {aws_region}")
+        print(f"AWS S3 client initialized for region {aws_region}")
     except Exception as e:
-        print(f"Failed to initialize AWS EC2 client: {str(e)}")
+        print(f"Failed to initialize AWS clients: {str(e)}")
 
 # Create the main app without a prefix
 app = FastAPI()
