@@ -12,7 +12,8 @@ from utils.supabase_utils import (
     save_migration_to_supabase,
     update_migration_status_in_supabase,
     get_migrations_for_workload,
-    update_workload_in_supabase
+    update_workload_in_supabase,
+    get_optimization_plan_from_supabase
 )
 from config.aws_config import s3_client, S3_BUCKET_NAME
 
