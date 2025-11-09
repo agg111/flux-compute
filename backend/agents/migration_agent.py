@@ -247,25 +247,31 @@ async def migration_with_checkpoint(workload_id: str, target_resource: dict, opt
         if previous_cost > 0:
             cost_improvement = ((previous_cost - new_cost) / previous_cost) * 100
         
+        # Get checkpoint info from job
+        checkpoint_info = job.get('checkpoint_info', {})
+        
         new_migration = {
             'migration_count': migration_count,
             'instance_id': ec2_result['instance_id'],
-            'instance_type': test_instance_type,  # Actual: t3.micro
+            'instance_type': test_instance_type if ec2_result.get('provider') != 'GCP' else 'e2-micro',
             'recommended_instance_type': target_resource.get('instance'),  # Recommended instance
+            'provider': ec2_result.get('provider', 'AWS'),
             'public_ip': ec2_result.get('public_ip'),
             'private_ip': ec2_result.get('private_ip'),
-            'availability_zone': ec2_result.get('availability_zone'),
+            'availability_zone': ec2_result.get('zone', ec2_result.get('availability_zone')),
             'started_at': ec2_result.get('launch_time'),
             'cost_per_hour': new_cost,  # Estimated for recommended
-            'actual_cost_per_hour': 0.0104,  # t3.micro cost
+            'actual_cost_per_hour': 0.0104 if ec2_result.get('provider') != 'GCP' else 0.008,
             'previous_cost_per_hour': previous_cost,
             'cost_improvement_percent': round(cost_improvement, 2),
             'gpu_type': target_resource.get('gpu'),  # Recommended GPU
             'memory': target_resource.get('memory'),  # Recommended memory
-            'migration_reason': f"AI-powered optimization: {cost_improvement:.1f}% cheaper - Recommended {target_resource.get('instance')} (using t3.micro for demo)",
+            'migration_reason': f"AI-powered cross-cloud optimization: {cost_improvement:.1f}% cheaper - Recommended {target_resource.get('instance')} ({ec2_result.get('provider', 'AWS')} {test_instance_type if ec2_result.get('provider') != 'GCP' else 'e2-micro'})",
             'status': 'active',
             'ai_powered': True,
-            'ai_confidence': optimizer_results.get('ai_analysis', {}).get('confidence_score', 0)
+            'ai_confidence': optimizer_results.get('ai_analysis', {}).get('confidence_score', 0),
+            'checkpoint_s3_key': checkpoint_info.get('checkpoint_key'),
+            'checkpoint_iteration': checkpoint_info.get('iteration')
         }
         save_migration_to_supabase(workload_id, new_migration)
         
