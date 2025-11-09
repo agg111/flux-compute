@@ -873,38 +873,22 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         migration_details["migration_completed"] = datetime.now(timezone.utc).isoformat()
         migration_details["status"] = "success"
         
-        # Phase 3: Job running on new instances
+        # Phase 3: Migration complete, now trigger Deployer Agent
         await db.jobs.update_one(
             {"workload_id": workload_id},
             {
                 "$set": {
-                    "status": JobStatus.RUNNING,
                     "migration_details": migration_details,
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
             }
         )
         
-        # Update Supabase with migration complete
-        job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
-        workload_json = {
-            'model_name': job['model_name'],
-            'datasize': job['datasize'],
-            'workload_type': job['workload_type'],
-            'duration': job['duration'],
-            'budget': job['budget'],
-            'precision': job.get('precision'),
-            'framework': job.get('framework'),
-            'scout_results': job.get('scout_results'),
-            'optimizer_results': optimizer_results,
-            'recommended_gpu': target_resource["gpu"],
-            'recommended_memory': target_resource["memory"],
-            'estimated_cost': optimizer_results.get('estimated_cost'),
-            'migration_details': migration_details
-        }
-        update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
-        
         logger.info(f"Migration Agent: Successfully migrated workload {workload_id} to {target_resource['provider']} {target_resource['instance']}")
+        logger.info(f"Migration Agent: Triggering Deployer Agent for workload {workload_id}")
+        
+        # Trigger Deployer Agent
+        asyncio.create_task(deployer_agent(workload_id, target_resource, migration_details, optimizer_results))
         
     except Exception as e:
         logger.error(f"Migration Agent: Error during migration - {str(e)}")
