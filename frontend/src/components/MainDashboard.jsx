@@ -810,19 +810,40 @@ const MainDashboard = () => {
                                         <span className="text-slate-300 font-mono">{migration.instance_id}</span>
                                       </div>
                                       <div className="flex justify-between text-slate-400">
-                                        <span>Type:</span>
+                                        <span>Actual:</span>
                                         <span className="text-blue-400">{migration.instance_type}</span>
                                       </div>
+                                      {migration.recommended_instance_type && migration.recommended_instance_type !== migration.instance_type && (
+                                        <div className="flex justify-between text-slate-400">
+                                          <span>Recommended:</span>
+                                          <span className="text-purple-300">{migration.recommended_instance_type}</span>
+                                        </div>
+                                      )}
                                       {migration.gpu_type && (
                                         <div className="flex justify-between text-slate-400">
-                                          <span>GPU:</span>
+                                          <span>Target GPU:</span>
                                           <span className="text-purple-400">{migration.gpu_type}</span>
                                         </div>
                                       )}
                                       {migration.cost_per_hour && (
                                         <div className="flex justify-between text-slate-400">
-                                          <span>Cost:</span>
+                                          <span>Est. Cost:</span>
                                           <span className="text-green-400">${migration.cost_per_hour}/hr</span>
+                                        </div>
+                                      )}
+                                      {migration.actual_cost_per_hour && (
+                                        <div className="flex justify-between text-slate-400">
+                                          <span>Actual Cost:</span>
+                                          <span className="text-green-300">${migration.actual_cost_per_hour}/hr</span>
+                                        </div>
+                                      )}
+                                      {migration.ai_powered && (
+                                        <div className="flex justify-between text-slate-400">
+                                          <span className="flex items-center gap-1">
+                                            <Sparkles className="w-3 h-3 text-purple-400" />
+                                            AI Powered:
+                                          </span>
+                                          <span className="text-purple-300">{migration.ai_confidence}% confidence</span>
                                         </div>
                                       )}
                                       {migration.migration_reason && (
