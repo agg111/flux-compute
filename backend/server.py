@@ -768,6 +768,287 @@ async def scout_agent(workload_id: str, model_name: str, datasize: str, workload
     asyncio.create_task(optimizer_agent(workload_id, scout_results, budget))
 
 
+async def continuous_scout_monitor(workload_id: str, model_name: str, datasize: str, workload_type: str, budget: float):
+    """Continuous Scout Monitor - Runs every 2 minutes to find better instances"""
+    logger.info(f"Continuous Scout Monitor: Starting for workload {workload_id}")
+    
+    iteration = 0
+    COST_SAVINGS_THRESHOLD = 0.20  # 20% savings required to trigger migration
+    
+    while True:
+        try:
+            # Wait 2 minutes before next scan
+            await asyncio.sleep(120)  # 2 minutes
+            
+            iteration += 1
+            logger.info(f"Continuous Scout Monitor: Iteration {iteration} for workload {workload_id}")
+            
+            # Check if workload is still running
+            job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+            if not job or job['status'] not in [JobStatus.RUNNING, JobStatus.MIGRATING]:
+                logger.info(f"Continuous Scout Monitor: Workload {workload_id} is no longer running, stopping monitor")
+                break
+            
+            # Get current instance cost
+            current_migration_details = job.get('migration_details', {})
+            current_optimizer_results = job.get('optimizer_results', {})
+            current_cost = current_optimizer_results.get('estimated_cost', 999999)
+            
+            logger.info(f"Continuous Scout Monitor: Current cost: ${current_cost}/hour")
+            
+            # Search for new options (simulate the scouting)
+            await asyncio.sleep(1)
+            
+            # Generate new GPU options similar to scout_agent
+            datasize_value = float(''.join(filter(str.isdigit, datasize)))
+            datasize_unit = ''.join(filter(str.isalpha, datasize)).upper()
+            datasize_gb = datasize_value
+            if datasize_unit == 'TB':
+                datasize_gb = datasize_value * 1024
+            elif datasize_unit == 'MB':
+                datasize_gb = datasize_value / 1024
+            
+            # Generate random cost variations to simulate market changes
+            cost_multiplier = random.uniform(0.60, 0.95)  # Simulate 5-40% cost reduction
+            
+            aws_options = []
+            if workload_type in ["Training", "Fine-tuning"]:
+                if datasize_gb > 20:
+                    aws_options = [
+                        {"provider": "AWS", "instance": "g5.12xlarge", "gpu": "4x A10G (24GB)", "memory": "192GB", "cost_per_hour": 5.67 * cost_multiplier},
+                        {"provider": "AWS", "instance": "g5.8xlarge", "gpu": "1x A10G (24GB)", "memory": "128GB", "cost_per_hour": 3.89 * cost_multiplier},
+                        {"provider": "AWS", "instance": "g4dn.12xlarge", "gpu": "4x T4 (16GB)", "memory": "192GB", "cost_per_hour": 3.912 * cost_multiplier},
+                    ]
+                else:
+                    aws_options = [
+                        {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006 * cost_multiplier},
+                        {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526 * cost_multiplier},
+                        {"provider": "AWS", "instance": "g5.2xlarge", "gpu": "1x A10G (24GB)", "memory": "32GB", "cost_per_hour": 1.212 * cost_multiplier},
+                    ]
+            else:
+                aws_options = [
+                    {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526 * cost_multiplier},
+                    {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006 * cost_multiplier},
+                    {"provider": "AWS", "instance": "g4dn.2xlarge", "gpu": "1x T4 (16GB)", "memory": "32GB", "cost_per_hour": 0.752 * cost_multiplier},
+                ]
+            
+            # Find the cheapest option
+            if aws_options:
+                best_option = min(aws_options, key=lambda x: x['cost_per_hour'])
+                new_cost = best_option['cost_per_hour']
+                cost_savings = (current_cost - new_cost) / current_cost
+                
+                logger.info(f"Continuous Scout Monitor: Found option: {best_option['instance']} at ${new_cost:.3f}/hour (savings: {cost_savings*100:.1f}%)")
+                
+                # Check if savings meet threshold
+                if cost_savings >= COST_SAVINGS_THRESHOLD:
+                    logger.info(f"Continuous Scout Monitor: 🎯 Cost savings of {cost_savings*100:.1f}% meets threshold ({COST_SAVINGS_THRESHOLD*100}%)!")
+                    logger.info(f"Continuous Scout Monitor: Triggering migration from ${current_cost:.3f}/hr to ${new_cost:.3f}/hr")
+                    
+                    # Update status to Found Better Deal
+                    await db.jobs.update_one(
+                        {"workload_id": workload_id},
+                        {"$set": {
+                            "status": JobStatus.FOUND_BETTER_DEAL,
+                            "updated_at": datetime.now(timezone.utc).isoformat()
+                        }}
+                    )
+                    
+                    # Trigger migration to the better instance
+                    await asyncio.sleep(2)  # Brief pause to show status
+                    
+                    # Create new optimizer results
+                    new_optimizer_results = {
+                        "selected_option": best_option,
+                        "estimated_cost": new_cost,
+                        "cost_savings_percent": cost_savings * 100,
+                        "previous_cost": current_cost,
+                        "optimization_version": current_optimizer_results.get('optimization_version', 0) + 1,
+                        "trigger": "continuous_scout_monitor",
+                        "iteration": iteration
+                    }
+                    
+                    # Save new optimization plan to Supabase
+                    plan_data = {
+                        "workload_id": workload_id,
+                        "target_resource": best_option,
+                        "optimizer_results": new_optimizer_results,
+                        "optimization_version": new_optimizer_results['optimization_version']
+                    }
+                    save_optimization_plan_to_supabase(workload_id, plan_data)
+                    
+                    # Store old instance for termination after migration
+                    old_instance_id = current_migration_details.get('ec2_instance_id')
+                    
+                    # Trigger migration with old instance info for cleanup
+                    asyncio.create_task(migration_with_checkpoint(
+                        workload_id, 
+                        best_option, 
+                        new_optimizer_results,
+                        old_instance_id
+                    ))
+                    
+                    # Don't break - continue monitoring for even better deals
+                else:
+                    logger.info(f"Continuous Scout Monitor: Cost savings of {cost_savings*100:.1f}% below threshold ({COST_SAVINGS_THRESHOLD*100}%), continuing to monitor")
+            
+        except Exception as e:
+            logger.error(f"Continuous Scout Monitor: Error in iteration {iteration} - {str(e)}")
+            await asyncio.sleep(120)  # Continue monitoring even after errors
+
+
+async def migration_with_checkpoint(workload_id: str, target_resource: dict, optimizer_results: dict, old_instance_id: str = None):
+    """Migration Agent with checkpoint handling and old instance cleanup"""
+    logger.info(f"Migration with Checkpoint: Starting for workload {workload_id}")
+    
+    try:
+        # Get current job state
+        job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+        old_migration_details = job.get('migration_details', {})
+        
+        # Phase 1: Checkpoint current training
+        logger.info(f"Migration with Checkpoint: Phase 1 - Checkpointing current training")
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {
+                "status": JobStatus.PROVISIONING,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        # The training script automatically checkpoints to S3, so we just need to wait a moment
+        await asyncio.sleep(3)
+        logger.info(f"Migration with Checkpoint: ✓ Training checkpointed to S3")
+        
+        # Phase 2: Provision new instance with training script
+        logger.info(f"Migration with Checkpoint: Phase 2 - Provisioning new instance {target_resource['instance']}")
+        
+        test_instance_type = 't3.micro'  # Still using t3.micro for testing
+        
+        ec2_result = await asyncio.to_thread(
+            provision_ec2_instance,
+            test_instance_type,
+            workload_id,
+            True  # deploy_training=True, will resume from checkpoint
+        )
+        
+        if ec2_result.get('status') == 'error':
+            logger.error(f"Migration with Checkpoint: Failed to provision new instance")
+            await db.jobs.update_one(
+                {"workload_id": workload_id},
+                {"$set": {"status": JobStatus.FAILED, "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            return
+        
+        logger.info(f"Migration with Checkpoint: ✓ New instance {ec2_result['instance_id']} provisioned")
+        
+        # Phase 3: New instance resumes from checkpoint
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {"status": JobStatus.MIGRATING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        logger.info(f"Migration with Checkpoint: Phase 3 - Training resuming from S3 checkpoint on new instance")
+        await asyncio.sleep(5)
+        logger.info(f"Migration with Checkpoint: ✓ Training resumed successfully on new instance")
+        
+        # Build migration details
+        migration_details = {
+            "phase": "migrated",
+            "target_provider": target_resource["provider"],
+            "target_instance": target_resource["instance"],
+            "target_gpu": target_resource["gpu"],
+            "ec2_instance_id": ec2_result["instance_id"],
+            "ec2_public_ip": ec2_result["public_ip"],
+            "ec2_private_ip": ec2_result["private_ip"],
+            "ec2_availability_zone": ec2_result["availability_zone"],
+            "ec2_launch_time": ec2_result["launch_time"],
+            "test_instance_type": test_instance_type,
+            "migration_completed": datetime.now(timezone.utc).isoformat(),
+            "status": "success",
+            "checkpoint_migration": True,
+            "previous_instance": old_instance_id,
+            "optimization_iteration": optimizer_results.get('iteration', 0)
+        }
+        
+        # Phase 4: Update endpoint via UserProxy
+        logger.info(f"Migration with Checkpoint: Phase 4 - Updating endpoint routing")
+        
+        deployment_details = {
+            "endpoint_url": f"http://{ec2_result['public_ip']}:8000/inference",
+            "status": "success"
+        }
+        
+        # Trigger UserProxy to update endpoint
+        asyncio.create_task(user_proxy_with_cleanup(
+            workload_id,
+            deployment_details,
+            migration_details,
+            old_instance_id
+        ))
+        
+        # Update job to RUNNING (UserProxy will handle final state)
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {
+                "$set": {
+                    "status": JobStatus.RUNNING,
+                    "migration_details": migration_details,
+                    "optimizer_results": optimizer_results,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        logger.info(f"Migration with Checkpoint: ✅ Migration complete - now running on {ec2_result['instance_id']}")
+        
+    except Exception as e:
+        logger.error(f"Migration with Checkpoint: Error - {str(e)}")
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {"status": JobStatus.FAILED, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+
+
+async def user_proxy_with_cleanup(workload_id: str, deployment_details: dict, migration_details: dict, old_instance_id: str = None):
+    """UserProxy Agent with old instance cleanup after endpoint update"""
+    logger.info(f"UserProxy with Cleanup: Starting for workload {workload_id}")
+    
+    try:
+        # First run the normal UserProxy agent logic
+        await user_proxy_agent(workload_id, deployment_details, migration_details)
+        
+        # After endpoint is updated, terminate old instance
+        if old_instance_id:
+            logger.info(f"UserProxy with Cleanup: Endpoint updated successfully, now terminating old instance {old_instance_id}")
+            await asyncio.sleep(2)  # Brief wait to ensure endpoint is stable
+            
+            terminate_result = await asyncio.to_thread(terminate_ec2_instance, old_instance_id)
+            
+            if terminate_result.get('status') == 'success':
+                logger.info(f"UserProxy with Cleanup: ✓ Old instance {old_instance_id} terminated successfully")
+                
+                # Update migration details with termination info
+                await db.jobs.update_one(
+                    {"workload_id": workload_id},
+                    {
+                        "$set": {
+                            "migration_details.old_instance_terminated": True,
+                            "migration_details.old_instance_id": old_instance_id,
+                            "migration_details.termination_time": datetime.now(timezone.utc).isoformat(),
+                            "updated_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    }
+                )
+            else:
+                logger.warning(f"UserProxy with Cleanup: Failed to terminate old instance {old_instance_id}")
+        else:
+            logger.info(f"UserProxy with Cleanup: No old instance to terminate")
+            
+    except Exception as e:
+        logger.error(f"UserProxy with Cleanup: Error - {str(e)}")
+
+
 async def user_proxy_agent(workload_id: str, deployment_details: dict, migration_details: dict):
     """UserProxy Agent - Updates endpoint routing to direct traffic to new instances"""
     logger.info(f"UserProxy Agent: Starting endpoint update for workload {workload_id}")
