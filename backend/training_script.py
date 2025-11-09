@@ -175,6 +175,7 @@ def main():
     print("-"*60)
     
     training_start_time = time.time()
+    migration_requested = False
     
     for iteration in range(start_iteration, TOTAL_ITERATIONS):
         # Train for one iteration
@@ -203,16 +204,33 @@ def main():
                   f"Train MSE: {train_mse:.4f} | Test MSE: {test_mse:.4f} | "
                   f"Train R²: {train_r2:.4f} | Test R²: {test_r2:.4f}")
         
-        # Save checkpoint periodically
-        if (iteration + 1) % CHECKPOINT_INTERVAL == 0:
-            checkpoint_data = {
-                'model': model,
-                'history': training_history,
-                'iteration': iteration + 1,
-                'X_train_shape': X_train.shape,
-                'timestamp': datetime.now().isoformat()
-            }
-            save_checkpoint_to_s3(checkpoint_data, iteration + 1)
+        # Check for migration request every CHECK_MIGRATION_INTERVAL iterations
+        if (iteration + 1) % CHECK_MIGRATION_INTERVAL == 0:
+            if check_migration_request():
+                migration_requested = True
+                print(f"\n{'='*60}")
+                print("MIGRATION REQUESTED - Saving checkpoint and preparing for migration")
+                print(f"{'='*60}\n")
+                
+                # Save checkpoint for migration
+                checkpoint_data = {
+                    'model': model,
+                    'history': training_history,
+                    'iteration': iteration + 1,
+                    'X_train_shape': X_train.shape,
+                    'timestamp': datetime.now().isoformat(),
+                    'migration_checkpoint': True
+                }
+                
+                if save_checkpoint_to_s3(checkpoint_data, iteration + 1):
+                    clear_migration_request()
+                    print(f"\n✓ Checkpoint saved successfully for migration")
+                    print(f"✓ Training will be resumed on new instance from iteration {iteration + 1}")
+                    print(f"\nExiting gracefully for migration...")
+                    return 0
+                else:
+                    print(f"\n✗ Failed to save checkpoint, continuing training")
+                    migration_requested = False
         
         # Simulate training time (each iteration takes ~0.6 seconds for 10-minute total)
         time.sleep(0.6)
