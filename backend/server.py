@@ -1086,6 +1086,8 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         migration_details["phase"] = "migrated"
         migration_details["migration_completed"] = datetime.now(timezone.utc).isoformat()
         migration_details["status"] = "success"
+        migration_details["validation_test"] = validation_test
+        migration_details["test_instance_type"] = test_instance_type
         
         # Phase 3: Migration complete, now trigger Deployer Agent
         await db.jobs.update_one(
