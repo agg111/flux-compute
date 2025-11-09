@@ -575,6 +575,33 @@ def provision_ec2_instance(instance_type: str, workload_id: str, deploy_training
         return {"status": "error", "message": str(e)}
 
 
+def terminate_ec2_instance(instance_id: str) -> dict:
+    """Terminate an EC2 instance"""
+    try:
+        if not ec2_client:
+            logger.error("EC2 client not initialized")
+            return {"status": "error", "message": "AWS not configured"}
+        
+        logger.info(f"Terminating EC2 instance: {instance_id}")
+        
+        response = ec2_client.terminate_instances(InstanceIds=[instance_id])
+        
+        if response['TerminatingInstances']:
+            instance_state = response['TerminatingInstances'][0]
+            logger.info(f"EC2 instance {instance_id} is terminating: {instance_state['CurrentState']['Name']}")
+            return {
+                "status": "success",
+                "instance_id": instance_id,
+                "state": instance_state['CurrentState']['Name']
+            }
+        
+        return {"status": "error", "message": "Failed to terminate instance"}
+        
+    except Exception as e:
+        logger.error(f"Error terminating EC2 instance: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
 def get_all_workloads_with_plans():
     """Get all workloads with their current optimization plans for re-optimization"""
     try:
