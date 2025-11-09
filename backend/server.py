@@ -276,7 +276,7 @@ def save_workload_to_supabase(workload_id: str, workload_data: dict, status: str
         return None
 
 
-def update_workload_in_supabase(workload_id: str, status: str = None, workload_data: dict = None):
+def update_workload_in_supabase(workload_id: str, status: str = None, workload_data: dict = None, plan_id: int = None):
     """Update workload in Supabase"""
     try:
         if not supabase:
@@ -291,8 +291,11 @@ def update_workload_in_supabase(workload_id: str, status: str = None, workload_d
         if workload_data:
             updates['workload_data'] = workload_data
         
+        if plan_id:
+            updates['plan_id'] = plan_id
+        
         result = supabase.table('workloads').update(updates).eq('workload_id', workload_id).execute()
-        logger.info(f"Updated workload in Supabase: {workload_id} - status: {status}")
+        logger.info(f"Updated workload in Supabase: {workload_id} - status: {status}, plan_id: {plan_id}")
         return result
         
     except Exception as e:
