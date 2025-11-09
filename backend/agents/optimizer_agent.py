@@ -241,7 +241,13 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         "optimization_timestamp": datetime.now(timezone.utc).isoformat(),
         "savings": round(max([opt["cost_per_hour"] for opt in suitable_options]) - best_option["cost_per_hour"], 2) if len(suitable_options) > 1 else 0,
         "optimization_percentage": optimization_percentage,
-        "model_insights": model_details
+        "model_insights": model_details,
+        "ai_analysis": {
+            "agent_id": OPTIMIZER_AGENT_ID,
+            "reasoning": ai_reasoning,
+            "confidence_score": ai_confidence,
+            "ai_powered": ai_powered
+        }
     }
     
     # Save improved plan to Supabase
