@@ -762,22 +762,22 @@ async def user_proxy_agent(workload_id: str, deployment_details: dict, migration
         )
         
         # Update Supabase
-        job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+        updated_job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
         workload_json = {
-            'model_name': job['model_name'],
-            'datasize': job['datasize'],
-            'workload_type': job['workload_type'],
-            'duration': job['duration'],
-            'budget': job['budget'],
-            'precision': job.get('precision'),
-            'framework': job.get('framework'),
-            'scout_results': job.get('scout_results'),
-            'optimizer_results': job.get('optimizer_results'),
-            'recommended_gpu': job.get('recommended_gpu'),
-            'recommended_memory': job.get('recommended_memory'),
-            'estimated_cost': job.get('estimated_cost'),
-            'migration_details': job.get('migration_details'),
-            'deployment_details': job.get('deployment_details'),
+            'model_name': updated_job['model_name'],
+            'datasize': updated_job['datasize'],
+            'workload_type': updated_job['workload_type'],
+            'duration': updated_job['duration'],
+            'budget': updated_job['budget'],
+            'precision': updated_job.get('precision'),
+            'framework': updated_job.get('framework'),
+            'scout_results': updated_job.get('scout_results'),
+            'optimizer_results': updated_job.get('optimizer_results'),
+            'recommended_gpu': updated_job.get('recommended_gpu'),
+            'recommended_memory': updated_job.get('recommended_memory'),
+            'estimated_cost': updated_job.get('estimated_cost'),
+            'migration_details': updated_job.get('migration_details'),
+            'deployment_details': updated_job.get('deployment_details'),
             'proxy_config': proxy_config
         }
         update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
