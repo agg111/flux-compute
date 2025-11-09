@@ -203,10 +203,26 @@ async def migration_with_checkpoint(workload_id: str, target_resource: dict, opt
 
 
 async def migration_agent(workload_id: str, target_resource: dict, optimizer_results: dict):
-    """Migration Agent - Provisions new instances and runs validation test"""
+    """Migration Agent - Provisions EC2 instances only if Optimizer approves"""
     logger.info(f"Migration Agent: Starting migration for workload {workload_id}")
     
     try:
+        # Check if optimizer recommends migration
+        should_migrate = optimizer_results.get('ai_analysis', {}).get('should_migrate', True)
+        
+        if not should_migrate:
+            logger.info(f"Migration Agent: Optimizer AI does not recommend migration, skipping")
+            await db.jobs.update_one(
+                {"workload_id": workload_id},
+                {"$set": {
+                    "status": JobStatus.PENDING,
+                    "migration_skipped": True,
+                    "migration_skip_reason": "Optimizer AI decided not to migrate",
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            return
+        
         # Get the optimization plan from DB
         current_plan = get_optimization_plan_from_supabase(workload_id)
         logger.info(f"Migration Agent: Retrieved plan from database - version {current_plan.get('plan_data', {}).get('optimization_version', 'unknown') if current_plan else 'N/A'}")
