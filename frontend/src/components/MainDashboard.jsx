@@ -39,6 +39,8 @@ const MainDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [migrations, setMigrations] = useState({});
+  const [loadingMigrations, setLoadingMigrations] = useState({});
   const [formData, setFormData] = useState({
     model_name: "",
     datasize: "",
