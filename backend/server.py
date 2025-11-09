@@ -762,25 +762,29 @@ async def user_proxy_agent(workload_id: str, deployment_details: dict, migration
         )
         
         # Update Supabase
-        updated_job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
-        workload_json = {
-            'model_name': updated_job['model_name'],
-            'datasize': updated_job['datasize'],
-            'workload_type': updated_job['workload_type'],
-            'duration': updated_job['duration'],
-            'budget': updated_job['budget'],
-            'precision': updated_job.get('precision'),
-            'framework': updated_job.get('framework'),
-            'scout_results': updated_job.get('scout_results'),
-            'optimizer_results': updated_job.get('optimizer_results'),
-            'recommended_gpu': updated_job.get('recommended_gpu'),
-            'recommended_memory': updated_job.get('recommended_memory'),
-            'estimated_cost': updated_job.get('estimated_cost'),
-            'migration_details': updated_job.get('migration_details'),
-            'deployment_details': updated_job.get('deployment_details'),
-            'proxy_config': proxy_config
-        }
-        update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
+        try:
+            updated_job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+            if updated_job:
+                workload_json = {
+                    'model_name': updated_job.get('model_name'),
+                    'datasize': updated_job.get('datasize'),
+                    'workload_type': updated_job.get('workload_type'),
+                    'duration': updated_job.get('duration'),
+                    'budget': updated_job.get('budget'),
+                    'precision': updated_job.get('precision'),
+                    'framework': updated_job.get('framework'),
+                    'scout_results': updated_job.get('scout_results'),
+                    'optimizer_results': updated_job.get('optimizer_results'),
+                    'recommended_gpu': updated_job.get('recommended_gpu'),
+                    'recommended_memory': updated_job.get('recommended_memory'),
+                    'estimated_cost': updated_job.get('estimated_cost'),
+                    'migration_details': updated_job.get('migration_details'),
+                    'deployment_details': updated_job.get('deployment_details'),
+                    'proxy_config': proxy_config
+                }
+                update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
+        except Exception as e:
+            logger.error(f"UserProxy Agent: Error updating Supabase - {str(e)}")
         
         logger.info(f"UserProxy Agent: ✅ Endpoint updated successfully! All traffic now directed to {new_endpoint}")
         
