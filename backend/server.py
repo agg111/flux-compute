@@ -79,6 +79,8 @@ class JobStatus(str, Enum):
     FOUND_BETTER_DEAL = "Found Better Deal"
     PROVISIONING = "Provisioning"
     MIGRATING = "Migrating"
+    DEPLOYING = "Deploying"
+    HEALTH_CHECK = "Health Check"
     RUNNING = "Running"
     COMPLETED = "Completed"
     FAILED = "Failed"
