@@ -73,8 +73,62 @@ async def migration_with_checkpoint(workload_id: str, target_resource: dict, opt
         
         # Wait for training script to checkpoint (checks every 10 iterations, ~6 seconds per iteration)
         logger.info(f"Migration with Checkpoint: Waiting for training to checkpoint (max 60 seconds)...")
-        await asyncio.sleep(15)  # Wait ~15 seconds for checkpoint to complete
-        logger.info(f"Migration with Checkpoint: ✓ Training checkpointed to S3")
+        
+        # Function to verify checkpoint exists in S3
+        def verify_checkpoint_in_s3():
+            try:
+                metadata_key = f"checkpoints/{workload_id}/metadata.json"
+                s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=metadata_key)
+                
+                # Get metadata to verify checkpoint
+                response = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=metadata_key)
+                metadata = json.loads(response['Body'].read())
+                
+                checkpoint_key = metadata.get('checkpoint_key')
+                iteration = metadata.get('iteration', 0)
+                
+                # Verify checkpoint file exists
+                s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=checkpoint_key)
+                
+                logger.info(f"Migration with Checkpoint: ✓ Verified checkpoint in S3: {checkpoint_key} (iteration: {iteration})")
+                return True, iteration, checkpoint_key
+            except Exception as e:
+                logger.warning(f"Migration with Checkpoint: Checkpoint not yet available: {str(e)}")
+                return False, 0, None
+        
+        # Wait and verify checkpoint
+        max_wait = 60  # seconds
+        wait_interval = 5  # seconds
+        total_waited = 0
+        checkpoint_verified = False
+        
+        while total_waited < max_wait:
+            await asyncio.sleep(wait_interval)
+            total_waited += wait_interval
+            
+            checkpoint_verified, iteration, checkpoint_key = await asyncio.to_thread(verify_checkpoint_in_s3)
+            if checkpoint_verified:
+                logger.info(f"Migration with Checkpoint: ✓ Checkpoint verified after {total_waited} seconds")
+                
+                # Store checkpoint info in migration details
+                await db.jobs.update_one(
+                    {"workload_id": workload_id},
+                    {"$set": {
+                        "checkpoint_info": {
+                            "s3_bucket": S3_BUCKET_NAME,
+                            "checkpoint_key": checkpoint_key,
+                            "iteration": iteration,
+                            "verified_at": datetime.now(timezone.utc).isoformat()
+                        },
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                break
+        
+        if not checkpoint_verified:
+            logger.warning(f"Migration with Checkpoint: Checkpoint not verified after {max_wait}s, proceeding anyway")
+        else:
+            logger.info(f"Migration with Checkpoint: ✓ Training checkpointed to S3 at iteration {iteration}")
         
         # Phase 2: Provision new instance with training script
         # Check if this is a migration (not initial provision) and use GCP
