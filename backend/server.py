@@ -689,13 +689,6 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     
     logger.info(f"Optimizer Agent: Selected {best_option['instance']} for workload {workload_id}")
     
-    # Simulate migration phase
-    await asyncio.sleep(1)
-    await db.jobs.update_one(
-        {"workload_id": workload_id},
-        {"$set": {"status": JobStatus.MIGRATING, "updated_at": datetime.now(timezone.utc).isoformat()}}
-    )
-    
     # Trigger Migration Agent
     logger.info(f"Optimizer Agent: Triggering Migration Agent for workload {workload_id}")
     asyncio.create_task(migration_agent(workload_id, best_option, optimizer_results))
