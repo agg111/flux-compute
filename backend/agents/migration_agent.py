@@ -325,9 +325,9 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         })
         logger.info(f"Migration Agent: ✓ Test data generated")
         
-        # Step 3: Run linear regression (simulated 10 minutes)
+        # Step 3: Run linear regression (actual 10 minutes)
         logger.info(f"Migration Agent: Running linear regression task for 10 minutes...")
-        await asyncio.sleep(10)  # Simulate 10 minutes with 10 seconds
+        await asyncio.sleep(600)  # 10 minutes = 600 seconds
         
         validation_test["steps"].append({
             "step": "Linear Regression Training",
