@@ -606,14 +606,9 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         {"$set": {"status": JobStatus.MIGRATING, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
-    # Finally set to Running
-    await asyncio.sleep(1)
-    await db.jobs.update_one(
-        {"workload_id": workload_id},
-        {"$set": {"status": JobStatus.RUNNING, "updated_at": datetime.now(timezone.utc).isoformat()}}
-    )
-    # Job is complete from optimization perspective - set to COMPLETE in Supabase
-    update_workload_in_supabase(workload_id, status="COMPLETE")
+    # Trigger Migration Agent
+    logger.info(f"Optimizer Agent: Triggering Migration Agent for workload {workload_id}")
+    asyncio.create_task(migration_agent(workload_id, best_option, optimizer_results))
 
 
 # Routes
