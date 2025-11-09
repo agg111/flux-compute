@@ -200,8 +200,6 @@ async def migration_with_checkpoint(workload_id: str, target_resource: dict, opt
         )
 
 
--e 
-
 
 async def migration_agent(workload_id: str, target_resource: dict, optimizer_results: dict):
     """Migration Agent - Provisions new instances and runs validation test"""
