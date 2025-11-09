@@ -1959,6 +1959,25 @@ async def get_job(workload_id: str):
     return job
 
 
+@api_router.get("/jobs/{workload_id}/migrations")
+async def get_job_migrations(workload_id: str):
+    """Get migration history for a specific job"""
+    # Verify job exists
+    job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Get migrations from Supabase
+    migrations = get_migrations_for_workload(workload_id)
+    
+    return {
+        "workload_id": workload_id,
+        "migration_count": len(migrations),
+        "migrations": migrations
+    }
+
+
 @api_router.patch("/jobs/{workload_id}", response_model=Job)
 async def update_job(workload_id: str, job_update: JobUpdate):
     """Update job status and details"""
