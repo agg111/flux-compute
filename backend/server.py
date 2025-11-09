@@ -1115,6 +1115,44 @@ async def migration_with_checkpoint(workload_id: str, target_resource: dict, opt
             }
         )
         
+        # Get migration count for this workload
+        existing_migrations = get_migrations_for_workload(workload_id)
+        migration_count = len(existing_migrations)
+        
+        # Mark old instance as terminated if exists
+        if old_instance_id:
+            update_migration_status_in_supabase(
+                workload_id, 
+                old_instance_id, 
+                'terminated', 
+                datetime.now(timezone.utc).isoformat()
+            )
+        
+        # Save new migration record
+        previous_cost = optimizer_results.get('previous_cost', 0)
+        new_cost = optimizer_results.get('estimated_cost', 0)
+        cost_improvement = 0
+        if previous_cost > 0:
+            cost_improvement = ((previous_cost - new_cost) / previous_cost) * 100
+        
+        new_migration = {
+            'migration_count': migration_count,
+            'instance_id': ec2_result['instance_id'],
+            'instance_type': test_instance_type,
+            'public_ip': ec2_result.get('public_ip'),
+            'private_ip': ec2_result.get('private_ip'),
+            'availability_zone': ec2_result.get('availability_zone'),
+            'started_at': ec2_result.get('launch_time'),
+            'cost_per_hour': new_cost,
+            'previous_cost_per_hour': previous_cost,
+            'cost_improvement_percent': round(cost_improvement, 2),
+            'gpu_type': target_resource.get('gpu'),
+            'memory': target_resource.get('memory'),
+            'migration_reason': f"Cost optimization: {cost_improvement:.1f}% cheaper",
+            'status': 'active'
+        }
+        save_migration_to_supabase(workload_id, new_migration)
+        
         logger.info(f"Migration with Checkpoint: ✅ Migration complete - now running on {ec2_result['instance_id']}")
         
     except Exception as e:
