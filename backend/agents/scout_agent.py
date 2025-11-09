@@ -229,9 +229,24 @@ async def continuous_scout_monitor(workload_id: str, model_name: str, datasize: 
                 
                 logger.info(f"Continuous Scout Monitor: Found option: {best_option['instance']} at ${new_cost:.3f}/hour (savings: {cost_savings*100:.1f}%)")
                 
-                # Check if savings meet threshold
+                # Check if savings meet threshold (20%)
                 if cost_savings >= COST_SAVINGS_THRESHOLD:
                     logger.info(f"Continuous Scout Monitor: 🎯 Cost savings of {cost_savings*100:.1f}% meets threshold ({COST_SAVINGS_THRESHOLD*100}%)!")
+                    
+                    # Use AI agent to validate migration decision
+                    should_migrate = await asyncio.to_thread(
+                        validate_migration_with_ai,
+                        job,
+                        best_option,
+                        current_optimizer_results.get('recommended_resource', {}),
+                        cost_savings * 100
+                    )
+                    
+                    if not should_migrate:
+                        logger.info(f"Continuous Scout Monitor: AI agent recommended NOT to migrate despite cost savings")
+                        continue
+                    
+                    logger.info(f"Continuous Scout Monitor: AI agent validated migration decision")
                     logger.info(f"Continuous Scout Monitor: Triggering migration from ${current_cost:.3f}/hr to ${new_cost:.3f}/hr")
                     
                     # Update status to Found Better Deal
