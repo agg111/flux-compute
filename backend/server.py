@@ -1538,6 +1538,16 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         
         logger.info(f"Migration Agent: ✅ Validation test passed! Workload {workload_id} is running on {test_instance_type}")
         
+        # Start continuous scout monitor to find better deals
+        logger.info(f"Migration Agent: Starting continuous scout monitor for ongoing optimization")
+        asyncio.create_task(continuous_scout_monitor(
+            workload_id,
+            job['model_name'],
+            job['datasize'],
+            job['workload_type'],
+            job['budget']
+        ))
+        
     except Exception as e:
         logger.error(f"Migration Agent: Error during migration - {str(e)}")
         await db.jobs.update_one(
