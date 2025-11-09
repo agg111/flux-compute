@@ -530,8 +530,8 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         'status': 'optimized',
         'optimization_version': (current_plan.get('plan_data', {}).get('optimization_version', 1) + 1) if current_plan else 2
     }
-    save_optimization_plan_to_supabase(workload_id, improved_plan)
-    logger.info(f"Optimizer Agent: Saved improved plan to Supabase (v{improved_plan['optimization_version']})")
+    new_plan_id = save_optimization_plan_to_supabase(workload_id, improved_plan)
+    logger.info(f"Optimizer Agent: Saved improved plan to Supabase (v{improved_plan['optimization_version']}, plan_id: {new_plan_id})")
     
     # Update status to Found Better Deal first
     await db.jobs.update_one(
