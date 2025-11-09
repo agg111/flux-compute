@@ -424,6 +424,7 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         
         # Start continuous scout monitor to find better deals
         logger.info(f"Migration Agent: Starting continuous scout monitor for ongoing optimization")
+        from agents.scout_agent import continuous_scout_monitor
         asyncio.create_task(continuous_scout_monitor(
             workload_id,
             job['model_name'],
