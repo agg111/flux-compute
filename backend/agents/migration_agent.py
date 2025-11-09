@@ -396,16 +396,20 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
             initial_migration = {
                 'migration_count': 0,
                 'instance_id': ec2_result['instance_id'],
-                'instance_type': test_instance_type,
+                'instance_type': test_instance_type,  # Actual: t3.micro
+                'recommended_instance_type': target_resource.get('instance'),  # Recommended: g5.xlarge, etc.
                 'public_ip': ec2_result.get('public_ip'),
                 'private_ip': ec2_result.get('private_ip'),
                 'availability_zone': ec2_result.get('availability_zone'),
                 'started_at': ec2_result.get('launch_time'),
-                'cost_per_hour': optimizer_results.get('estimated_cost'),
-                'gpu_type': target_resource.get('gpu'),
-                'memory': target_resource.get('memory'),
-                'migration_reason': 'Initial provisioning',
-                'status': 'active'
+                'cost_per_hour': optimizer_results.get('estimated_cost'),  # Estimated for recommended
+                'actual_cost_per_hour': 0.0104,  # t3.micro cost
+                'gpu_type': target_resource.get('gpu'),  # Recommended GPU
+                'memory': target_resource.get('memory'),  # Recommended memory
+                'migration_reason': f'Initial provisioning - AI recommended {target_resource.get("instance")} (using t3.micro for demo)',
+                'status': 'active',
+                'ai_powered': optimizer_results.get('ai_analysis', {}).get('ai_powered', False),
+                'ai_confidence': optimizer_results.get('ai_analysis', {}).get('confidence_score', 0)
             }
             save_migration_to_supabase(workload_id, initial_migration)
         
