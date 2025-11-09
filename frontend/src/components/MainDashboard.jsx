@@ -744,6 +744,115 @@ const MainDashboard = () => {
                         </div>
                       )}
 
+                      {/* Migration History */}
+                      {job.migration_details && job.migration_details.ec2_instance_id && (
+                        <Collapsible className="mt-3">
+                          <CollapsibleTrigger 
+                            onClick={() => fetchMigrations(job.workload_id)}
+                            className="flex items-center justify-between w-full p-3 bg-slate-800 border border-purple-900 rounded-lg hover:bg-slate-750 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-purple-400" />
+                              <span className="text-sm font-semibold text-purple-400">Migration History</span>
+                              {migrations[job.workload_id] && (
+                                <Badge variant="outline" className="ml-2 text-xs border-purple-700 text-purple-300">
+                                  {migrations[job.workload_id].migration_count} {migrations[job.workload_id].migration_count === 1 ? 'migration' : 'migrations'}
+                                </Badge>
+                              )}
+                            </div>
+                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                          </CollapsibleTrigger>
+                          
+                          <CollapsibleContent>
+                            {loadingMigrations[job.workload_id] ? (
+                              <div className="mt-2 p-3 bg-slate-900 border border-purple-900 rounded-lg flex items-center justify-center">
+                                <Loader2 className="w-4 h-4 animate-spin text-purple-400 mr-2" />
+                                <span className="text-xs text-slate-400">Loading migrations...</span>
+                              </div>
+                            ) : migrations[job.workload_id] && migrations[job.workload_id].migrations.length > 0 ? (
+                              <div className="mt-2 space-y-2">
+                                {migrations[job.workload_id].migrations.map((migration, idx) => (
+                                  <div 
+                                    key={idx}
+                                    className={`p-3 bg-slate-900 border rounded-lg ${
+                                      migration.status === 'active' ? 'border-green-900' : 'border-slate-800'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <Badge 
+                                          variant={migration.status === 'active' ? 'default' : 'outline'}
+                                          className={`text-xs ${
+                                            migration.status === 'active' 
+                                              ? 'bg-green-900 text-green-200' 
+                                              : 'border-slate-700 text-slate-400'
+                                          }`}
+                                        >
+                                          {migration.migration_count === 0 ? 'Initial' : `Migration ${migration.migration_count}`}
+                                        </Badge>
+                                        {migration.status === 'active' && (
+                                          <span className="flex items-center gap-1 text-xs text-green-400">
+                                            <Activity className="w-3 h-3" />
+                                            Active
+                                          </span>
+                                        )}
+                                      </div>
+                                      {migration.cost_improvement_percent && migration.cost_improvement_percent > 0 && (
+                                        <Badge className="bg-purple-900 text-purple-200 text-xs">
+                                          {migration.cost_improvement_percent}% cheaper
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="space-y-1 text-xs">
+                                      <div className="flex justify-between text-slate-400">
+                                        <span>Instance:</span>
+                                        <span className="text-slate-300 font-mono">{migration.instance_id}</span>
+                                      </div>
+                                      <div className="flex justify-between text-slate-400">
+                                        <span>Type:</span>
+                                        <span className="text-blue-400">{migration.instance_type}</span>
+                                      </div>
+                                      {migration.gpu_type && (
+                                        <div className="flex justify-between text-slate-400">
+                                          <span>GPU:</span>
+                                          <span className="text-purple-400">{migration.gpu_type}</span>
+                                        </div>
+                                      )}
+                                      {migration.cost_per_hour && (
+                                        <div className="flex justify-between text-slate-400">
+                                          <span>Cost:</span>
+                                          <span className="text-green-400">${migration.cost_per_hour}/hr</span>
+                                        </div>
+                                      )}
+                                      {migration.migration_reason && (
+                                        <div className="mt-2 pt-2 border-t border-slate-800">
+                                          <p className="text-xs text-slate-500 italic">{migration.migration_reason}</p>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between text-slate-500 text-[10px] mt-2">
+                                        <span>Started:</span>
+                                        <span>{migration.started_at ? format(new Date(migration.started_at), "PPp") : 'N/A'}</span>
+                                      </div>
+                                      {migration.ended_at && (
+                                        <div className="flex justify-between text-slate-500 text-[10px]">
+                                          <span>Ended:</span>
+                                          <span>{format(new Date(migration.ended_at), "PPp")}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="mt-2 p-3 bg-slate-900 border border-purple-900 rounded-lg">
+                                <p className="text-xs text-slate-400 text-center">No migration history available</p>
+                              </div>
+                            )}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+
                       <p className="text-xs text-slate-500" data-testid={`job-created-at-${job.workload_id}`}>
                         Created {format(new Date(job.created_at), "PPp")}
                       </p>
