@@ -643,8 +643,29 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         
         logger.info(f"Migration Agent: Provisioning {target_resource['instance']} on {target_resource['provider']}")
         
-        # Simulate instance provisioning (2-3 seconds)
-        await asyncio.sleep(2)
+        # Provision real EC2 instance if AWS
+        ec2_result = None
+        if target_resource['provider'] == 'AWS':
+            logger.info(f"Migration Agent: Launching real EC2 instance {target_resource['instance']}")
+            ec2_result = await asyncio.to_thread(
+                provision_ec2_instance, 
+                target_resource['instance'], 
+                workload_id
+            )
+            
+            if ec2_result.get('status') == 'error':
+                logger.error(f"Migration Agent: Failed to provision EC2 - {ec2_result.get('message')}")
+                await db.jobs.update_one(
+                    {"workload_id": workload_id},
+                    {"$set": {"status": JobStatus.FAILED, "updated_at": datetime.now(timezone.utc).isoformat()}}
+                )
+                return
+            
+            logger.info(f"Migration Agent: EC2 instance {ec2_result['instance_id']} provisioned successfully")
+        else:
+            # For GCP, simulate for now
+            logger.info(f"Migration Agent: Simulating GCP provisioning (not implemented yet)")
+            await asyncio.sleep(2)
         
         migration_details = {
             "phase": "provisioning",
