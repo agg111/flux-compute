@@ -270,90 +270,17 @@ async def scout_agent(workload_id: str, model_name: str, datasize: str, workload
     # Update Supabase (Scouting maps to RUNNING)
     update_workload_in_supabase(workload_id, status="RUNNING")
     
-    # Simulate scout agent searching cloud providers
-    await asyncio.sleep(2)
+    # Use AI agent to fetch latest spot instance prices from AWS and GCP
+    logger.info(f"Scout Agent: Fetching latest spot instance prices via AI agent")
+    gpu_options = await asyncio.to_thread(
+        fetch_spot_instances_with_ai,
+        model_name,
+        datasize,
+        workload_type,
+        budget
+    )
     
-    # Parse data size to estimate GPU requirements
-    datasize_value = float(''.join(filter(str.isdigit, datasize)))
-    datasize_unit = ''.join(filter(str.isalpha, datasize)).upper()
-    
-    # Convert to GB for comparison
-    datasize_gb = datasize_value
-    if datasize_unit == 'TB':
-        datasize_gb = datasize_value * 1024
-    elif datasize_unit == 'MB':
-        datasize_gb = datasize_value / 1024
-    
-    # Determine GPU requirements based on workload
-    # Always return 3 options from AWS and 3 from GCP
-    aws_options = []
-    gcp_options = []
-    
-    if workload_type in ["Training", "Fine-tuning"]:
-        if datasize_gb > 100 or "70b" in model_name.lower() or "65b" in model_name.lower():
-            # Large model training
-            aws_options = [
-                {"provider": "AWS", "instance": "p4d.24xlarge", "gpu": "8x A100 (40GB)", "memory": "320GB", "cost_per_hour": 32.77},
-                {"provider": "AWS", "instance": "p4de.24xlarge", "gpu": "8x A100 (80GB)", "memory": "1152GB", "cost_per_hour": 40.96},
-                {"provider": "AWS", "instance": "p3.16xlarge", "gpu": "8x V100 (16GB)", "memory": "488GB", "cost_per_hour": 24.48},
-            ]
-            gcp_options = [
-                {"provider": "GCP", "instance": "a2-highgpu-8g", "gpu": "8x A100 (40GB)", "memory": "680GB", "cost_per_hour": 29.39},
-                {"provider": "GCP", "instance": "a2-ultragpu-8g", "gpu": "8x A100 (80GB)", "memory": "680GB", "cost_per_hour": 35.73},
-                {"provider": "GCP", "instance": "a2-highgpu-4g", "gpu": "4x A100 (40GB)", "memory": "340GB", "cost_per_hour": 14.69},
-            ]
-        elif datasize_gb > 20 or "7b" in model_name.lower() or "13b" in model_name.lower():
-            # Medium model training
-            aws_options = [
-                {"provider": "AWS", "instance": "g5.12xlarge", "gpu": "4x A10G (24GB)", "memory": "192GB", "cost_per_hour": 5.67},
-                {"provider": "AWS", "instance": "p3.8xlarge", "gpu": "4x V100 (16GB)", "memory": "244GB", "cost_per_hour": 12.24},
-                {"provider": "AWS", "instance": "g5.24xlarge", "gpu": "4x A10G (24GB)", "memory": "384GB", "cost_per_hour": 8.14},
-            ]
-            gcp_options = [
-                {"provider": "GCP", "instance": "a2-highgpu-4g", "gpu": "4x A100 (40GB)", "memory": "340GB", "cost_per_hour": 14.69},
-                {"provider": "GCP", "instance": "a2-highgpu-2g", "gpu": "2x A100 (40GB)", "memory": "170GB", "cost_per_hour": 7.35},
-                {"provider": "GCP", "instance": "n1-highmem-16-v100", "gpu": "4x V100 (16GB)", "memory": "104GB", "cost_per_hour": 9.76},
-            ]
-        else:
-            # Small model training
-            aws_options = [
-                {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006},
-                {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526},
-                {"provider": "AWS", "instance": "g5.2xlarge", "gpu": "1x A10G (24GB)", "memory": "32GB", "cost_per_hour": 1.212},
-            ]
-            gcp_options = [
-                {"provider": "GCP", "instance": "n1-standard-8-t4", "gpu": "1x T4 (16GB)", "memory": "30GB", "cost_per_hour": 0.71},
-                {"provider": "GCP", "instance": "n1-standard-4-t4", "gpu": "1x T4 (16GB)", "memory": "15GB", "cost_per_hour": 0.58},
-                {"provider": "GCP", "instance": "a2-highgpu-1g", "gpu": "1x A100 (40GB)", "memory": "85GB", "cost_per_hour": 3.67},
-            ]
-    else:  # Inference or Embeddings
-        if "70b" in model_name.lower() or "65b" in model_name.lower():
-            # Large model inference
-            aws_options = [
-                {"provider": "AWS", "instance": "g5.12xlarge", "gpu": "4x A10G (24GB)", "memory": "192GB", "cost_per_hour": 5.67},
-                {"provider": "AWS", "instance": "g5.48xlarge", "gpu": "8x A10G (24GB)", "memory": "768GB", "cost_per_hour": 16.29},
-                {"provider": "AWS", "instance": "p3.8xlarge", "gpu": "4x V100 (16GB)", "memory": "244GB", "cost_per_hour": 12.24},
-            ]
-            gcp_options = [
-                {"provider": "GCP", "instance": "a2-highgpu-2g", "gpu": "2x A100 (40GB)", "memory": "170GB", "cost_per_hour": 7.35},
-                {"provider": "GCP", "instance": "a2-highgpu-4g", "gpu": "4x A100 (40GB)", "memory": "340GB", "cost_per_hour": 14.69},
-                {"provider": "GCP", "instance": "a2-highgpu-1g", "gpu": "1x A100 (40GB)", "memory": "85GB", "cost_per_hour": 3.67},
-            ]
-        else:
-            # Small/medium model inference
-            aws_options = [
-                {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006},
-                {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526},
-                {"provider": "AWS", "instance": "g5.2xlarge", "gpu": "1x A10G (24GB)", "memory": "32GB", "cost_per_hour": 1.212},
-            ]
-            gcp_options = [
-                {"provider": "GCP", "instance": "n1-standard-4-t4", "gpu": "1x T4 (16GB)", "memory": "15GB", "cost_per_hour": 0.58},
-                {"provider": "GCP", "instance": "n1-standard-8-t4", "gpu": "1x T4 (16GB)", "memory": "30GB", "cost_per_hour": 0.71},
-                {"provider": "GCP", "instance": "a2-highgpu-1g", "gpu": "1x A100 (40GB)", "memory": "85GB", "cost_per_hour": 3.67},
-            ]
-    
-    # Combine AWS and GCP options (3 from each)
-    gpu_options = aws_options + gcp_options
+    logger.info(f"Scout Agent: Retrieved {len(gpu_options)} spot instances from AI agent")
     
     scout_results = {
         "available_resources": gpu_options,
