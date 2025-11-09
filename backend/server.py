@@ -1009,25 +1009,79 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
             migration_details["ec2_availability_zone"] = ec2_result["availability_zone"]
             migration_details["ec2_launch_time"] = ec2_result["launch_time"]
         
-        # Phase 2: Migrating workload
+        # Phase 2: Running validation test - Linear Regression (10 minutes)
         await db.jobs.update_one(
             {"workload_id": workload_id},
             {"$set": {"status": JobStatus.MIGRATING, "updated_at": datetime.now(timezone.utc).isoformat()}}
         )
         
-        logger.info(f"Migration Agent: Migrating workload to new instances")
+        logger.info(f"Migration Agent: Starting Linear Regression validation test (10 minutes)")
         
-        # Simulate workload migration steps
-        migration_steps = [
-            "Copying model weights",
-            "Transferring data",
-            "Configuring environment",
-            "Running health checks"
-        ]
+        # Simulate running a linear regression task
+        validation_test = {
+            "task": "Linear Regression",
+            "duration": "10 minutes",
+            "status": "running",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "instance": test_instance_type,
+            "steps": []
+        }
         
-        for step in migration_steps:
-            logger.info(f"Migration Agent: {step}...")
-            await asyncio.sleep(1)
+        # Step 1: Setup environment
+        await asyncio.sleep(2)
+        validation_test["steps"].append({
+            "step": "Environment Setup",
+            "status": "completed",
+            "details": "Installed Python, NumPy, scikit-learn",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"Migration Agent: ✓ Environment setup complete")
+        
+        # Step 2: Generate test data
+        await asyncio.sleep(1)
+        validation_test["steps"].append({
+            "step": "Generate Test Data",
+            "status": "completed",
+            "details": "Generated 10,000 samples with 50 features",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"Migration Agent: ✓ Test data generated")
+        
+        # Step 3: Run linear regression (simulated 10 minutes)
+        logger.info(f"Migration Agent: Running linear regression task for 10 minutes...")
+        await asyncio.sleep(10)  # Simulate 10 minutes with 10 seconds
+        
+        validation_test["steps"].append({
+            "step": "Linear Regression Training",
+            "status": "completed",
+            "details": "Trained model for 1000 iterations, MSE: 0.023",
+            "metrics": {
+                "iterations": 1000,
+                "mse": 0.023,
+                "r2_score": 0.987,
+                "training_time": "9m 45s"
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"Migration Agent: ✓ Linear regression completed successfully")
+        
+        # Step 4: Validation
+        await asyncio.sleep(1)
+        validation_test["steps"].append({
+            "step": "Model Validation",
+            "status": "completed",
+            "details": "Validated on 2,000 test samples",
+            "metrics": {
+                "test_mse": 0.025,
+                "test_r2_score": 0.985
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"Migration Agent: ✓ Model validation complete")
+        
+        validation_test["status"] = "completed"
+        validation_test["completed_at"] = datetime.now(timezone.utc).isoformat()
+        validation_test["result"] = "success"
         
         migration_details["phase"] = "migrated"
         migration_details["migration_completed"] = datetime.now(timezone.utc).isoformat()
