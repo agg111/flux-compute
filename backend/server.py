@@ -470,6 +470,96 @@ async def scout_agent(workload_id: str, model_name: str, datasize: str, workload
     asyncio.create_task(optimizer_agent(workload_id, scout_results, budget))
 
 
+async def migration_agent(workload_id: str, target_resource: dict, optimizer_results: dict):
+    """Migration Agent - Provisions new instances and migrates the workload"""
+    logger.info(f"Migration Agent: Starting migration for workload {workload_id}")
+    
+    try:
+        # Phase 1: Provisioning new instances
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {"status": JobStatus.PROVISIONING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        update_workload_in_supabase(workload_id, status="RUNNING")
+        
+        logger.info(f"Migration Agent: Provisioning {target_resource['instance']} on {target_resource['provider']}")
+        
+        # Simulate instance provisioning (2-3 seconds)
+        await asyncio.sleep(2)
+        
+        migration_details = {
+            "phase": "provisioning",
+            "target_provider": target_resource["provider"],
+            "target_instance": target_resource["instance"],
+            "target_gpu": target_resource["gpu"],
+            "provisioning_started": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Phase 2: Migrating workload
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {"status": JobStatus.MIGRATING, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        logger.info(f"Migration Agent: Migrating workload to new instances")
+        
+        # Simulate workload migration steps
+        migration_steps = [
+            "Copying model weights",
+            "Transferring data",
+            "Configuring environment",
+            "Running health checks"
+        ]
+        
+        for step in migration_steps:
+            logger.info(f"Migration Agent: {step}...")
+            await asyncio.sleep(1)
+        
+        migration_details["phase"] = "migrated"
+        migration_details["migration_completed"] = datetime.now(timezone.utc).isoformat()
+        migration_details["status"] = "success"
+        
+        # Phase 3: Job running on new instances
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {
+                "$set": {
+                    "status": JobStatus.RUNNING,
+                    "migration_details": migration_details,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        # Update Supabase with migration complete
+        job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+        workload_json = {
+            'model_name': job['model_name'],
+            'datasize': job['datasize'],
+            'workload_type': job['workload_type'],
+            'duration': job['duration'],
+            'budget': job['budget'],
+            'precision': job.get('precision'),
+            'framework': job.get('framework'),
+            'scout_results': job.get('scout_results'),
+            'optimizer_results': optimizer_results,
+            'recommended_gpu': target_resource["gpu"],
+            'recommended_memory': target_resource["memory"],
+            'estimated_cost': optimizer_results.get('estimated_cost'),
+            'migration_details': migration_details
+        }
+        update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
+        
+        logger.info(f"Migration Agent: Successfully migrated workload {workload_id} to {target_resource['provider']} {target_resource['instance']}")
+        
+    except Exception as e:
+        logger.error(f"Migration Agent: Error during migration - {str(e)}")
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {"status": JobStatus.FAILED, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+
+
 async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     """Optimizer Agent - Selects the best GPU resource based on cost and performance"""
     logger.info(f"Optimizer Agent: Starting optimization for workload {workload_id}")
