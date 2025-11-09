@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Linear Regression Training Script with S3 Checkpointing
-This script runs on EC2 instances and periodically saves checkpoints to S3
+This script runs on EC2 instances and saves checkpoint to S3 only when migration is requested
 """
 
 import numpy as np
@@ -22,7 +22,7 @@ S3_BUCKET = os.environ.get('S3_BUCKET', 'ml-workload-checkpoints')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-2')
 AWS_ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-CHECKPOINT_INTERVAL = int(os.environ.get('CHECKPOINT_INTERVAL', '50'))  # iterations
+CHECK_MIGRATION_INTERVAL = int(os.environ.get('CHECK_MIGRATION_INTERVAL', '10'))  # Check every N iterations
 TOTAL_ITERATIONS = int(os.environ.get('TOTAL_ITERATIONS', '1000'))  # ~10 minutes
 
 # Initialize S3 client
