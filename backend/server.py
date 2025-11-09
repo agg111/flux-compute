@@ -129,6 +129,7 @@ class Job(BaseModel):
     scout_results: Optional[dict] = None
     optimizer_results: Optional[dict] = None
     migration_details: Optional[dict] = None
+    deployment_details: Optional[dict] = None
 
 class JobUpdate(BaseModel):
     status: Optional[JobStatus] = None
