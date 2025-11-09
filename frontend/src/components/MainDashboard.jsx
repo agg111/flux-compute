@@ -665,37 +665,63 @@ const MainDashboard = () => {
                         </div>
                       )}
 
-                      {/* Migration Details */}
-                      {job.migration_details && job.migration_details.status === 'success' && (
+                      {/* Validation Test Results */}
+                      {job.migration_details && job.migration_details.validation_test && (
                         <div className="mt-3 p-3 bg-slate-800 border border-green-900 rounded-lg">
                           <div className="flex items-center gap-2 mb-2">
                             <CheckCircle2 className="w-4 h-4 text-green-400" />
-                            <span className="text-sm font-semibold text-green-400">Migration Complete</span>
+                            <span className="text-sm font-semibold text-green-400">Validation Test Complete</span>
+                          </div>
+                          <div className="space-y-2 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Task:</span>
+                              <span className="text-slate-300">{job.migration_details.validation_test.task}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Duration:</span>
+                              <span className="text-slate-300">{job.migration_details.validation_test.duration}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Instance:</span>
+                              <span className="text-slate-300 font-mono">{job.migration_details.test_instance_type}</span>
+                            </div>
+                            {job.migration_details.validation_test.steps && job.migration_details.validation_test.steps.length > 0 && (
+                              <div className="pt-2 border-t border-slate-700 space-y-1">
+                                {job.migration_details.validation_test.steps.map((step, idx) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />
+                                    <span className="text-slate-300">{step.step}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex justify-between pt-2 border-t border-slate-700">
+                              <span className="text-slate-400">Result:</span>
+                              <span className="text-green-400 font-semibold">{job.migration_details.validation_test.result}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Migration Details */}
+                      {job.migration_details && job.migration_details.status === 'success' && job.migration_details.ec2_instance_id && (
+                        <div className="mt-3 p-3 bg-slate-800 border border-blue-900 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Activity className="w-4 h-4 text-blue-400" />
+                            <span className="text-sm font-semibold text-blue-400">EC2 Instance</span>
                           </div>
                           <div className="space-y-1 text-xs text-slate-400">
                             <div className="flex justify-between">
-                              <span>Provisioned:</span>
-                              <span className="text-slate-300">{job.migration_details.target_instance}</span>
+                              <span>Instance ID:</span>
+                              <span className="text-slate-300 font-mono">{job.migration_details.ec2_instance_id}</span>
                             </div>
-                            {job.migration_details.ec2_instance_id && (
-                              <>
-                                <div className="flex justify-between">
-                                  <span>EC2 Instance:</span>
-                                  <span className="text-slate-300 font-mono">{job.migration_details.ec2_instance_id}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Public IP:</span>
-                                  <span className="text-blue-400 font-mono">{job.migration_details.ec2_public_ip}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Zone:</span>
-                                  <span className="text-slate-300">{job.migration_details.ec2_availability_zone}</span>
-                                </div>
-                              </>
-                            )}
-                            <div className="flex justify-between pt-1 border-t border-slate-700">
-                              <span>Status:</span>
-                              <span className="text-green-400">Successfully migrated</span>
+                            <div className="flex justify-between">
+                              <span>Public IP:</span>
+                              <span className="text-blue-400 font-mono">{job.migration_details.ec2_public_ip}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Zone:</span>
+                              <span className="text-slate-300">{job.migration_details.ec2_availability_zone}</span>
                             </div>
                           </div>
                         </div>
