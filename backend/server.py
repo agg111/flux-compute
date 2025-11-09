@@ -32,6 +32,32 @@ supabase_url = os.environ.get('SUPABASE_URL')
 supabase_key = os.environ.get('SUPABASE_KEY')
 supabase: Client = create_client(supabase_url, supabase_key) if supabase_url and supabase_key else None
 
+# AWS EC2 connection
+aws_access_key = os.environ.get('AWS_ACCESS_KEY_ID')
+aws_secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
+aws_region = os.environ.get('AWS_REGION', 'us-east-2')
+
+ec2_client = None
+ec2_resource = None
+
+if aws_access_key and aws_secret_key:
+    try:
+        ec2_client = boto3.client(
+            'ec2',
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        ec2_resource = boto3.resource(
+            'ec2',
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        logger.info(f"AWS EC2 client initialized for region {aws_region}")
+    except Exception as e:
+        logger.error(f"Failed to initialize AWS EC2 client: {str(e)}")
+
 # Create the main app without a prefix
 app = FastAPI()
 
