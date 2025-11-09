@@ -264,38 +264,127 @@ def terminate_ec2_instance(instance_id: str) -> dict:
 
 
 def provision_gcp_instance(instance_type: str, workload_id: str, deploy_training: bool = False) -> dict:
-    """Simulate GCP instance provisioning (for testing migration workflow)"""
+    """Provision a real GCP Compute Engine instance"""
     try:
-        import uuid
-        from datetime import datetime, timezone
-        
-        # Simulate GCP instance creation
-        instance_id = f"gcp-instance-{uuid.uuid4().hex[:12]}"
-        
-        logger.info(f"Simulating GCP instance provisioning: {instance_type} with ID {instance_id}")
-        
-        # Simulate some delay for instance creation
+        from google.cloud import compute_v1
+        from config.gcp_config import compute_client, gcp_project_id, gcp_zone
         import time
-        time.sleep(5)
+        
+        if not compute_client:
+            logger.error("GCP Compute client not initialized")
+            return {"status": "error", "message": "GCP not configured"}
+        
+        # For testing, use e2-micro (cheapest instance)
+        machine_type = "e2-micro"  # Similar to AWS t3.micro
+        instance_name = f"ml-workload-{workload_id[:8]}"
+        
+        logger.info(f"Provisioning GCP instance: {machine_type} with name {instance_name}")
+        
+        # Configure instance
+        instance = compute_v1.Instance()
+        instance.name = instance_name
+        instance.machine_type = f"zones/{gcp_zone}/machineTypes/{machine_type}"
+        
+        # Boot disk configuration
+        boot_disk = compute_v1.AttachedDisk()
+        initialize_params = compute_v1.AttachedDiskInitializeParams()
+        initialize_params.source_image = "projects/debian-cloud/global/images/family/debian-11"
+        initialize_params.disk_size_gb = 10
+        boot_disk.initialize_params = initialize_params
+        boot_disk.auto_delete = True
+        boot_disk.boot = True
+        instance.disks = [boot_disk]
+        
+        # Network configuration
+        network_interface = compute_v1.NetworkInterface()
+        network_interface.name = "global/networks/default"
+        
+        # Add external IP
+        access_config = compute_v1.AccessConfig()
+        access_config.name = "External NAT"
+        access_config.type_ = "ONE_TO_ONE_NAT"
+        network_interface.access_configs = [access_config]
+        instance.network_interfaces = [network_interface]
+        
+        # Labels
+        instance.labels = {
+            "workload_id": workload_id[:8],
+            "managed_by": "ml-optimizer"
+        }
+        
+        # Startup script if deploying training
+        if deploy_training:
+            metadata_items = []
+            startup_script = generate_user_data_script(workload_id)  # Reuse AWS user-data script
+            
+            metadata_item = compute_v1.Items()
+            metadata_item.key = "startup-script"
+            metadata_item.value = startup_script
+            metadata_items.append(metadata_item)
+            
+            metadata = compute_v1.Metadata()
+            metadata.items = metadata_items
+            instance.metadata = metadata
+            
+            logger.info(f"Deploying training script via startup-script")
+        
+        # Create instance
+        operation = compute_client.insert(
+            project=gcp_project_id,
+            zone=gcp_zone,
+            instance_resource=instance
+        )
+        
+        logger.info(f"GCP instance creation initiated: {instance_name}, waiting for completion...")
+        
+        # Wait for operation to complete
+        start_time = time.time()
+        timeout = 120  # 2 minutes timeout
+        
+        while time.time() - start_time < timeout:
+            if operation.status == compute_v1.Operation.Status.DONE:
+                break
+            time.sleep(2)
+        
+        if operation.status != compute_v1.Operation.Status.DONE:
+            logger.error(f"GCP instance creation timed out")
+            return {"status": "error", "message": "Instance creation timed out"}
+        
+        # Get instance details
+        instance_details = compute_client.get(
+            project=gcp_project_id,
+            zone=gcp_zone,
+            instance=instance_name
+        )
+        
+        # Extract IP addresses
+        public_ip = None
+        private_ip = None
+        
+        if instance_details.network_interfaces:
+            private_ip = instance_details.network_interfaces[0].network_i_p
+            if instance_details.network_interfaces[0].access_configs:
+                public_ip = instance_details.network_interfaces[0].access_configs[0].nat_i_p
         
         result = {
             "status": "success",
             "provider": "GCP",
-            "instance_id": instance_id,
-            "instance_type": instance_type,
+            "instance_id": instance_name,
+            "instance_type": machine_type,
             "state": "running",
-            "public_ip": f"34.{uuid.uuid4().fields[0] % 256}.{uuid.uuid4().fields[1] % 256}.{uuid.uuid4().fields[2] % 256}",
-            "private_ip": f"10.{uuid.uuid4().fields[0] % 256}.{uuid.uuid4().fields[1] % 256}.{uuid.uuid4().fields[2] % 256}",
-            "zone": "us-central1-a",
-            "launch_time": datetime.now(timezone.utc).isoformat(),
-            "simulated": True
+            "public_ip": public_ip,
+            "private_ip": private_ip,
+            "zone": gcp_zone,
+            "launch_time": datetime.now(timezone.utc).isoformat()
         }
         
-        logger.info(f"GCP instance {instance_id} is running (simulated) at {result['public_ip']}")
+        logger.info(f"GCP instance {instance_name} is running at {public_ip}")
         return result
         
     except Exception as e:
         logger.error(f"Error provisioning GCP instance: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
 
