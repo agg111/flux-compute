@@ -1655,6 +1655,24 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         }
         update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
         
+        # Save initial migration record to Supabase migrations table
+        if ec2_result and ec2_result.get('status') == 'success':
+            initial_migration = {
+                'migration_count': 0,
+                'instance_id': ec2_result['instance_id'],
+                'instance_type': test_instance_type,
+                'public_ip': ec2_result.get('public_ip'),
+                'private_ip': ec2_result.get('private_ip'),
+                'availability_zone': ec2_result.get('availability_zone'),
+                'started_at': ec2_result.get('launch_time'),
+                'cost_per_hour': optimizer_results.get('estimated_cost'),
+                'gpu_type': target_resource.get('gpu'),
+                'memory': target_resource.get('memory'),
+                'migration_reason': 'Initial provisioning',
+                'status': 'active'
+            }
+            save_migration_to_supabase(workload_id, initial_migration)
+        
         logger.info(f"Migration Agent: ✅ Validation test passed! Workload {workload_id} is running on {test_instance_type}")
         
         # Start continuous scout monitor to find better deals
