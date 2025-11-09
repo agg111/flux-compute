@@ -442,7 +442,54 @@ def ensure_security_group():
         return None
 
 
-def provision_ec2_instance(instance_type: str, workload_id: str) -> dict:
+def generate_user_data_script(workload_id: str) -> str:
+    """Generate user-data script to deploy training on EC2 instance"""
+    # Read the training script
+    script_path = Path(__file__).parent / 'training_script.py'
+    with open(script_path, 'r') as f:
+        training_script_content = f.read()
+    
+    # Create base64 encoded training script
+    import base64
+    encoded_script = base64.b64encode(training_script_content.encode()).decode()
+    
+    user_data = f"""#!/bin/bash
+# Update system
+yum update -y
+
+# Install Python 3 and pip
+yum install -y python3 python3-pip
+
+# Install required packages
+pip3 install numpy scikit-learn boto3
+
+# Create training directory
+mkdir -p /home/ec2-user/ml-training
+cd /home/ec2-user/ml-training
+
+# Decode and save training script
+echo "{encoded_script}" | base64 -d > training_script.py
+chmod +x training_script.py
+
+# Set environment variables
+export WORKLOAD_ID="{workload_id}"
+export S3_BUCKET="{S3_BUCKET_NAME}"
+export AWS_REGION="{aws_region}"
+export AWS_ACCESS_KEY_ID="{aws_access_key}"
+export AWS_SECRET_ACCESS_KEY="{aws_secret_key}"
+export CHECKPOINT_INTERVAL="50"
+export TOTAL_ITERATIONS="1000"
+
+# Run training script in background with logging
+nohup python3 training_script.py > training.log 2>&1 &
+
+# Save PID for monitoring
+echo $! > training.pid
+"""
+    return user_data
+
+
+def provision_ec2_instance(instance_type: str, workload_id: str, deploy_training: bool = False) -> dict:
     """Provision a real EC2 instance on AWS"""
     try:
         if not ec2_client or not ec2_resource:
