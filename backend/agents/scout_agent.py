@@ -350,44 +350,18 @@ async def continuous_scout_monitor(workload_id: str, model_name: str, datasize: 
             
             logger.info(f"Continuous Scout Monitor: Current cost: ${current_cost}/hour")
             
-            # Search for new options (simulate the scouting)
-            await asyncio.sleep(1)
+            # Use AI agent to fetch latest spot instance prices
+            logger.info(f"Continuous Scout Monitor: Fetching latest spot prices via AI agent")
+            new_options = await asyncio.to_thread(
+                fetch_spot_instances_with_ai,
+                model_name,
+                datasize,
+                workload_type,
+                budget
+            )
             
-            # Generate new GPU options similar to scout_agent
-            datasize_value = float(''.join(filter(str.isdigit, datasize)))
-            datasize_unit = ''.join(filter(str.isalpha, datasize)).upper()
-            datasize_gb = datasize_value
-            if datasize_unit == 'TB':
-                datasize_gb = datasize_value * 1024
-            elif datasize_unit == 'MB':
-                datasize_gb = datasize_value / 1024
-            
-            # Generate random cost variations to simulate market changes
-            cost_multiplier = random.uniform(0.60, 0.95)  # Simulate 5-40% cost reduction
-            
-            aws_options = []
-            if workload_type in ["Training", "Fine-tuning"]:
-                if datasize_gb > 20:
-                    aws_options = [
-                        {"provider": "AWS", "instance": "g5.12xlarge", "gpu": "4x A10G (24GB)", "memory": "192GB", "cost_per_hour": 5.67 * cost_multiplier},
-                        {"provider": "AWS", "instance": "g5.8xlarge", "gpu": "1x A10G (24GB)", "memory": "128GB", "cost_per_hour": 3.89 * cost_multiplier},
-                        {"provider": "AWS", "instance": "g4dn.12xlarge", "gpu": "4x T4 (16GB)", "memory": "192GB", "cost_per_hour": 3.912 * cost_multiplier},
-                    ]
-                else:
-                    aws_options = [
-                        {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006 * cost_multiplier},
-                        {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526 * cost_multiplier},
-                        {"provider": "AWS", "instance": "g5.2xlarge", "gpu": "1x A10G (24GB)", "memory": "32GB", "cost_per_hour": 1.212 * cost_multiplier},
-                    ]
-            else:
-                aws_options = [
-                    {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526 * cost_multiplier},
-                    {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006 * cost_multiplier},
-                    {"provider": "AWS", "instance": "g4dn.2xlarge", "gpu": "1x T4 (16GB)", "memory": "32GB", "cost_per_hour": 0.752 * cost_multiplier},
-                ]
-            
-            # Find the cheapest option
-            if aws_options:
+            # Find the cheapest option from AI-fetched instances
+            if new_options:
                 best_option = min(aws_options, key=lambda x: x['cost_per_hour'])
                 new_cost = best_option['cost_per_hour']
                 cost_savings = (current_cost - new_cost) / current_cost
