@@ -633,6 +633,164 @@ async def scout_agent(workload_id: str, model_name: str, datasize: str, workload
     asyncio.create_task(optimizer_agent(workload_id, scout_results, budget))
 
 
+async def user_proxy_agent(workload_id: str, deployment_details: dict, migration_details: dict):
+    """UserProxy Agent - Updates endpoint routing to direct traffic to new instances"""
+    logger.info(f"UserProxy Agent: Starting endpoint update for workload {workload_id}")
+    
+    try:
+        # Update status to Updating Endpoint
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {"status": JobStatus.UPDATING_ENDPOINT, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        # Get job details to fetch existing endpoint configuration
+        job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+        
+        old_endpoint = None
+        if job.get('proxy_config'):
+            old_endpoint = job['proxy_config'].get('active_endpoint')
+        
+        new_endpoint = deployment_details.get('endpoint_url')
+        new_instance = migration_details.get('ec2_instance_id')
+        new_ip = migration_details.get('ec2_public_ip')
+        
+        logger.info(f"UserProxy Agent: Updating endpoint from {old_endpoint or 'none'} to {new_endpoint}")
+        
+        # Simulate endpoint update steps
+        update_steps = []
+        
+        # Step 1: Validate new endpoint
+        await asyncio.sleep(1)
+        update_steps.append({
+            "step": "Validate New Endpoint",
+            "status": "completed",
+            "details": f"Verified {new_endpoint} is responding",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"UserProxy Agent: ✓ New endpoint validated")
+        
+        # Step 2: Update load balancer / API gateway
+        await asyncio.sleep(1)
+        update_steps.append({
+            "step": "Update Load Balancer",
+            "status": "completed",
+            "details": f"Added target {new_instance} to load balancer pool",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"UserProxy Agent: ✓ Load balancer updated")
+        
+        # Step 3: Update DNS / Service Discovery
+        await asyncio.sleep(1)
+        update_steps.append({
+            "step": "Update Service Discovery",
+            "status": "completed",
+            "details": f"Registered new endpoint in service mesh",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"UserProxy Agent: ✓ Service discovery updated")
+        
+        # Step 4: Gradual traffic shift (blue-green deployment)
+        await asyncio.sleep(1.5)
+        traffic_shift_stages = [
+            {"percentage": 10, "description": "10% traffic to new instance"},
+            {"percentage": 50, "description": "50% traffic to new instance"},
+            {"percentage": 100, "description": "100% traffic to new instance"}
+        ]
+        
+        for stage in traffic_shift_stages:
+            await asyncio.sleep(0.5)
+            logger.info(f"UserProxy Agent: → {stage['description']}")
+        
+        update_steps.append({
+            "step": "Traffic Shift",
+            "status": "completed",
+            "details": "Gradually shifted 100% traffic to new instance",
+            "stages": traffic_shift_stages,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info(f"UserProxy Agent: ✓ Traffic shift completed")
+        
+        # Step 5: Remove old instance from rotation (if exists)
+        if old_endpoint:
+            await asyncio.sleep(1)
+            update_steps.append({
+                "step": "Remove Old Instance",
+                "status": "completed",
+                "details": f"Removed old endpoint {old_endpoint} from rotation",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            logger.info(f"UserProxy Agent: ✓ Old instance removed from rotation")
+        
+        # Build proxy configuration
+        endpoint_history = job.get('proxy_config', {}).get('endpoint_history', [])
+        
+        # Add old endpoint to history if it exists
+        if old_endpoint:
+            endpoint_history.append({
+                "endpoint": old_endpoint,
+                "deactivated_at": datetime.now(timezone.utc).isoformat(),
+                "duration_active": "N/A"  # Would calculate from activation time
+            })
+        
+        proxy_config = {
+            "active_endpoint": new_endpoint,
+            "active_instance": new_instance,
+            "active_ip": new_ip,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "update_steps": update_steps,
+            "traffic_distribution": {
+                "new_instance": 100,
+                "old_instance": 0
+            },
+            "endpoint_history": endpoint_history,
+            "routing_strategy": "blue-green",
+            "status": "active"
+        }
+        
+        # Update job with proxy configuration
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {
+                "$set": {
+                    "status": JobStatus.RUNNING,
+                    "proxy_config": proxy_config,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        # Update Supabase
+        job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+        workload_json = {
+            'model_name': job['model_name'],
+            'datasize': job['datasize'],
+            'workload_type': job['workload_type'],
+            'duration': job['duration'],
+            'budget': job['budget'],
+            'precision': job.get('precision'),
+            'framework': job.get('framework'),
+            'scout_results': job.get('scout_results'),
+            'optimizer_results': job.get('optimizer_results'),
+            'recommended_gpu': job.get('recommended_gpu'),
+            'recommended_memory': job.get('recommended_memory'),
+            'estimated_cost': job.get('estimated_cost'),
+            'migration_details': job.get('migration_details'),
+            'deployment_details': job.get('deployment_details'),
+            'proxy_config': proxy_config
+        }
+        update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
+        
+        logger.info(f"UserProxy Agent: ✅ Endpoint updated successfully! All traffic now directed to {new_endpoint}")
+        
+    except Exception as e:
+        logger.error(f"UserProxy Agent: Error updating endpoint - {str(e)}")
+        await db.jobs.update_one(
+            {"workload_id": workload_id},
+            {"$set": {"status": JobStatus.FAILED, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+
+
 async def deployer_agent(workload_id: str, target_resource: dict, migration_details: dict, optimizer_results: dict):
     """Deployer Agent - Deploys the workload to the provisioned instance and runs health checks"""
     logger.info(f"Deployer Agent: Starting deployment for workload {workload_id}")
