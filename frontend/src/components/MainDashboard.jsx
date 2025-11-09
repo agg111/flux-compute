@@ -173,6 +173,7 @@ const MainDashboard = () => {
       "Migrating": "bg-blue-900/50 text-blue-200 border-blue-700",
       "Deploying": "bg-blue-900/50 text-blue-200 border-blue-700",
       "Health Check": "bg-green-900/50 text-green-200 border-green-700",
+      "Updating Endpoint": "bg-purple-900/50 text-purple-200 border-purple-700",
       "Running": "bg-green-900/50 text-green-200 border-green-700",
       "Completed": "bg-slate-700 text-slate-200 border-slate-600",
       "Failed": "bg-slate-700 text-slate-200 border-slate-600",
