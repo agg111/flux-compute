@@ -19,6 +19,9 @@ from config.aws_config import s3_client, S3_BUCKET_NAME
 
 logger = logging.getLogger(__name__)
 
+# Forward declaration - will be imported to avoid circular import
+continuous_scout_monitor = None
+
 async def migration_with_checkpoint(workload_id: str, target_resource: dict, optimizer_results: dict, old_instance_id: str = None):
     """Migration Agent with checkpoint handling and old instance cleanup"""
     logger.info(f"Migration with Checkpoint: Starting for workload {workload_id}")
