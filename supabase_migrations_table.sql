@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS migrations (
     instance_id TEXT NOT NULL,
     instance_type TEXT,
     recommended_instance_type TEXT,
+    provider TEXT,
     public_ip TEXT,
     private_ip TEXT,
     availability_zone TEXT,
@@ -21,6 +22,8 @@ CREATE TABLE IF NOT EXISTS migrations (
     status TEXT DEFAULT 'active',
     ai_powered BOOLEAN DEFAULT false,
     ai_confidence INTEGER,
+    checkpoint_s3_key TEXT,
+    checkpoint_iteration INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
