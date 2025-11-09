@@ -477,7 +477,7 @@ export S3_BUCKET="{S3_BUCKET_NAME}"
 export AWS_REGION="{aws_region}"
 export AWS_ACCESS_KEY_ID="{aws_access_key}"
 export AWS_SECRET_ACCESS_KEY="{aws_secret_key}"
-export CHECKPOINT_INTERVAL="50"
+export CHECK_MIGRATION_INTERVAL="10"
 export TOTAL_ITERATIONS="1000"
 
 # Run training script in background with logging
