@@ -99,5 +99,182 @@
 
 
 #====================================================================================================
-# Testing Data - Main Agent and testing sub agent both should log testing data below this section
+# Testing Data - Main Agent and testing sub agent should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Implement live migration system for ML workloads:
+  1. Deploy real Python linear regression script on EC2 instances
+  2. Continuous scout agent runs every 2 minutes to find better instances
+  3. Trigger migration when ≥20% cost savings found
+  4. Save model checkpoints to S3 during migration
+  5. Resume training on new instance from checkpoint
+  6. UserProxy updates endpoint routing
+  7. Terminate old instance after successful migration
+
+backend:
+  - task: "S3 Client Initialization and Bucket Setup"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added S3 client initialization, ensure_s3_bucket() function. Bucket ml-workload-checkpoints-gpu-scout created successfully on startup."
+  
+  - task: "Linear Regression Training Script with S3 Checkpointing"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/training_script.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created complete training script with scikit-learn. Saves checkpoints to S3 every 50 iterations. Can resume from checkpoint. 1000 iterations total (~10 mins). Needs integration testing on EC2."
+  
+  - task: "EC2 User-Data Script Generation"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Created generate_user_data_script() that deploys training script to EC2 via base64 encoding. Installs dependencies and starts training automatically."
+  
+  - task: "EC2 Provisioning with Training Deployment"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modified provision_ec2_instance() to accept deploy_training parameter. When true, deploys training script via user-data. Needs testing to verify script execution on EC2."
+  
+  - task: "EC2 Instance Termination"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created terminate_ec2_instance() function to terminate old instances. Includes error handling and logging. Needs testing."
+  
+  - task: "Continuous Scout Monitor Agent"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created continuous_scout_monitor() that runs every 2 minutes (120s). Checks for cost savings ≥20%. Simulates market changes with random multipliers. Triggers migration when threshold met."
+  
+  - task: "Migration with Checkpoint Handling"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created migration_with_checkpoint() agent. Checkpoints training, provisions new instance, resumes from S3. Tracks old instance for cleanup. Needs end-to-end testing."
+  
+  - task: "UserProxy with Instance Cleanup"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created user_proxy_with_cleanup() agent. Updates endpoint routing, then terminates old instance. Records termination in migration_details. Needs testing."
+  
+  - task: "Original Migration Agent Enhancement"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modified migration_agent() to deploy training script (deploy_training=True). Triggers continuous_scout_monitor at the end. Needs testing."
+
+frontend:
+  - task: "Display Migration Status"
+    implemented: false
+    working: "NA"
+    file: "N/A"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Frontend not modified yet. May need UI updates to show continuous scout status and migration history."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "S3 Client Initialization and Bucket Setup"
+    - "EC2 Provisioning with Training Deployment"
+    - "Continuous Scout Monitor Agent"
+    - "Migration with Checkpoint Handling"
+    - "Complete end-to-end workflow"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Implementation complete! Created live migration system with:
+      
+      ✅ S3 Integration: Bucket created, checkpoint save/load ready
+      ✅ Training Script: Real linear regression with scikit-learn, S3 checkpointing
+      ✅ EC2 Deployment: User-data script deploys training automatically
+      ✅ Continuous Scout: Runs every 2 minutes, 20% threshold
+      ✅ Live Migration: Checkpoint → New instance → Resume → Cleanup
+      ✅ Instance Cleanup: Old instances terminated after migration
+      
+      Ready for backend testing:
+      1. Test job submission and initial EC2 provisioning with training
+      2. Verify training script deploys and runs on EC2
+      3. Test continuous scout monitor (runs every 2 min)
+      4. Test migration trigger (≥20% savings)
+      5. Verify checkpoint save/load to S3
+      6. Test endpoint update and old instance termination
+      
+      IMPORTANT: This will create real EC2 instances and store data in S3.
+      Testing should verify:
+      - S3 bucket access
+      - EC2 instance creation with user-data
+      - Training script execution on EC2 (check user-data logs)
+      - Checkpoint files in S3
+      - Instance termination after migration
