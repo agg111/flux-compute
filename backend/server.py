@@ -303,6 +303,36 @@ def update_workload_in_supabase(workload_id: str, status: str = None, workload_d
         return None
 
 
+def get_all_workloads_with_plans():
+    """Get all workloads with their current optimization plans for re-optimization"""
+    try:
+        if not supabase:
+            logger.warning("Supabase not configured")
+            return []
+        
+        # Get all RUNNING workloads
+        workloads = supabase.table('workloads').select('*').eq('status', 'RUNNING').execute()
+        
+        if not workloads.data:
+            return []
+        
+        # For each workload, fetch its current plan if plan_id exists
+        workloads_with_plans = []
+        for workload in workloads.data:
+            if workload.get('plan_id'):
+                plan = supabase.table('optimization_plans').select('*').eq('id', workload['plan_id']).execute()
+                if plan.data and len(plan.data) > 0:
+                    workload['current_plan'] = plan.data[0]
+            workloads_with_plans.append(workload)
+        
+        logger.info(f"Retrieved {len(workloads_with_plans)} workloads with plans for potential re-optimization")
+        return workloads_with_plans
+        
+    except Exception as e:
+        logger.error(f"Error getting workloads with plans: {str(e)}")
+        return []
+
+
 # Agent Functions
 async def scout_agent(workload_id: str, model_name: str, datasize: str, workload_type: str, budget: float):
     """Scout Agent - Searches for available GPU resources from AWS and GCP"""
