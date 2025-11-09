@@ -16,6 +16,97 @@ OPTIMIZER_AGENT_ID = "d32e7ebe-bedf-4887-85cb-1c740e1e3831"
 AGENT_API_URL = "https://api.emergentagent.com/v1/agent/invoke"
 
 
+def validate_migration_with_ai(job: dict, new_instance: dict, current_instance: dict, cost_savings_percent: float) -> bool:
+    """
+    Use AI agent to validate if migration should proceed
+    
+    Returns:
+        bool: True if migration should proceed, False otherwise
+    """
+    try:
+        prompt = f"""You are an expert at deciding whether to migrate ML workloads between GPU instances. Analyze this migration decision:
+
+CURRENT INSTANCE:
+- Provider: {current_instance.get('provider', 'N/A')}
+- Instance: {current_instance.get('instance', 'N/A')}
+- GPU: {current_instance.get('gpu', 'N/A')}
+- Cost: ${current_instance.get('cost_per_hour', 0)}/hour
+
+NEW INSTANCE (PROPOSED):
+- Provider: {new_instance.get('provider', 'N/A')}
+- Instance: {new_instance.get('instance', 'N/A')}
+- GPU: {new_instance.get('gpu', 'N/A')}
+- Cost: ${new_instance.get('cost_per_hour', 0)}/hour
+
+COST SAVINGS: {cost_savings_percent:.1f}%
+
+WORKLOAD DETAILS:
+- Model: {job.get('model_name', 'N/A')}
+- Workload Type: {job.get('workload_type', 'N/A')}
+- Current Status: {job.get('status', 'N/A')}
+
+CONSIDERATIONS:
+1. Migration overhead (checkpoint save/load, ~1-2 minutes downtime)
+2. Risk of interrupting training progress
+3. Potential performance difference between GPUs
+4. Cost savings vs migration risk
+
+Should we proceed with this migration? Respond with ONLY a JSON object:
+{{
+    "should_migrate": true/false,
+    "reasoning": "brief explanation",
+    "risk_level": "low/medium/high",
+    "confidence": 0-100
+}}
+"""
+        
+        payload = {
+            "custom_agent_id": OPTIMIZER_AGENT_ID,
+            "prompt": prompt,
+            "stream": False
+        }
+        
+        logger.info(f"Asking AI agent whether to proceed with migration ({cost_savings_percent:.1f}% savings)")
+        
+        response = requests.post(
+            AGENT_API_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=20
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            agent_response = result.get('response', '')
+            
+            # Parse JSON response
+            import json
+            import re
+            json_match = re.search(r'\{[^{}]*"should_migrate"[^{}]*\}', agent_response, re.DOTALL)
+            
+            if json_match:
+                decision = json.loads(json_match.group())
+                should_migrate = decision.get('should_migrate', True)
+                reasoning = decision.get('reasoning', 'AI analysis')
+                confidence = decision.get('confidence', 50)
+                
+                logger.info(f"AI Migration Decision: {'PROCEED' if should_migrate else 'SKIP'} (confidence: {confidence}%)")
+                logger.info(f"AI Reasoning: {reasoning}")
+                
+                return should_migrate
+            else:
+                logger.warning("Could not parse AI response, defaulting to PROCEED")
+                return True
+        else:
+            logger.error(f"AI agent API failed: {response.status_code}, defaulting to PROCEED")
+            return True
+            
+    except Exception as e:
+        logger.error(f"Error calling AI agent for migration validation: {str(e)}")
+        # Default to proceeding with migration if AI fails
+        return True
+
+
 async def scout_agent(workload_id: str, model_name: str, datasize: str, workload_type: str, budget: float):
     """Scout Agent - Searches for available GPU resources from AWS and GCP"""
     from utils.supabase_utils import update_workload_in_supabase, save_optimization_plan_to_supabase
