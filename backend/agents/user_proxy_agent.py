@@ -24,7 +24,14 @@ async def user_proxy_with_cleanup(workload_id: str, deployment_details: dict, mi
             logger.info(f"UserProxy with Cleanup: Endpoint updated successfully, now terminating old instance {old_instance_id}")
             await asyncio.sleep(2)  # Brief wait to ensure endpoint is stable
             
-            terminate_result = await asyncio.to_thread(terminate_ec2_instance, old_instance_id)
+            # Check if it's AWS or GCP instance
+            if old_instance_id.startswith('i-'):
+                # AWS EC2 instance
+                terminate_result = await asyncio.to_thread(terminate_ec2_instance, old_instance_id)
+            else:
+                # GCP instance
+                from utils.aws_utils import terminate_gcp_instance
+                terminate_result = await asyncio.to_thread(terminate_gcp_instance, old_instance_id)
             
             if terminate_result.get('status') == 'success':
                 logger.info(f"UserProxy with Cleanup: ✓ Old instance {old_instance_id} terminated successfully")
