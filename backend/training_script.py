@@ -77,7 +77,7 @@ def save_checkpoint_to_s3(checkpoint_data, iteration):
 
 
 def load_checkpoint_from_s3():
-    """Load latest checkpoint from S3 (tries pickle first, then JSON)"""
+    """Load latest checkpoint from S3"""
     try:
         metadata_key = f"checkpoints/{WORKLOAD_ID}/metadata.json"
         
@@ -85,61 +85,20 @@ def load_checkpoint_from_s3():
         response = s3_client.get_object(Bucket=S3_BUCKET, Key=metadata_key)
         metadata = json.loads(response['Body'].read())
         
+        checkpoint_key = metadata['checkpoint_key']
         iteration = metadata['iteration']
         
-        # Try pickle first (most reliable for model restoration)
-        checkpoint_key_pkl = metadata.get('checkpoint_key_pickle', metadata.get('checkpoint_key'))
-        try:
-            print(f"Attempting to load pickle checkpoint: {checkpoint_key_pkl}")
-            response = s3_client.get_object(Bucket=S3_BUCKET, Key=checkpoint_key_pkl)
-            checkpoint_data = pickle.loads(response['Body'].read())
-            print(f"✓ Pickle checkpoint loaded from S3: iteration {iteration}")
-            return checkpoint_data, iteration
-        except Exception as pickle_error:
-            print(f"⚠ Pickle load failed: {str(pickle_error)}, trying JSON...")
-            
-            # Fall back to JSON
-            checkpoint_key_json = metadata.get('checkpoint_key_json', checkpoint_key_pkl.replace('.pkl', '.json'))
-            try:
-                print(f"Attempting to load JSON checkpoint: {checkpoint_key_json}")
-                response = s3_client.get_object(Bucket=S3_BUCKET, Key=checkpoint_key_json)
-                checkpoint_json = json.loads(response['Body'].read())
-                
-                # Reconstruct model from JSON weights
-                model = SGDRegressor(max_iter=1, warm_start=True, random_state=42)
-                
-                # Set the weights
-                model.coef_ = np.array(checkpoint_json['model_weights']['coef'])
-                model.intercept_ = checkpoint_json['model_weights']['intercept']
-                
-                # Set iteration counters
-                if 'n_iter' in checkpoint_json['model_weights']:
-                    model.n_iter_ = checkpoint_json['model_weights']['n_iter']
-                if 't' in checkpoint_json['model_weights']:
-                    model.t_ = checkpoint_json['model_weights']['t']
-                
-                # Reconstruct checkpoint_data
-                checkpoint_data = {
-                    'model': model,
-                    'history': checkpoint_json['training_history'],
-                    'iteration': checkpoint_json['iteration'],
-                    'X_train_shape': tuple(checkpoint_json['X_train_shape']),
-                    'timestamp': checkpoint_json['timestamp']
-                }
-                
-                print(f"✓ JSON checkpoint loaded from S3: iteration {iteration}")
-                return checkpoint_data, iteration
-            except Exception as json_error:
-                print(f"✗ JSON load also failed: {str(json_error)}")
-                raise json_error
+        # Load checkpoint
+        response = s3_client.get_object(Bucket=S3_BUCKET, Key=checkpoint_key)
+        checkpoint_data = pickle.loads(response['Body'].read())
         
+        print(f"✓ Checkpoint loaded from S3: iteration {iteration}")
+        return checkpoint_data, iteration
     except s3_client.exceptions.NoSuchKey:
         print("No existing checkpoint found, starting from scratch")
         return None, 0
     except Exception as e:
         print(f"✗ Error loading checkpoint: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return None, 0
 
 
