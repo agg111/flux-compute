@@ -98,6 +98,7 @@ class Job(BaseModel):
     recommended_memory: Optional[str] = None
     scout_results: Optional[dict] = None
     optimizer_results: Optional[dict] = None
+    migration_details: Optional[dict] = None
 
 class JobUpdate(BaseModel):
     status: Optional[JobStatus] = None
