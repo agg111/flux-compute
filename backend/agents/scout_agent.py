@@ -362,7 +362,7 @@ async def continuous_scout_monitor(workload_id: str, model_name: str, datasize: 
             
             # Find the cheapest option from AI-fetched instances
             if new_options:
-                best_option = min(aws_options, key=lambda x: x['cost_per_hour'])
+                best_option = min(new_options, key=lambda x: x['cost_per_hour'])
                 new_cost = best_option['cost_per_hour']
                 cost_savings = (current_cost - new_cost) / current_cost
                 
