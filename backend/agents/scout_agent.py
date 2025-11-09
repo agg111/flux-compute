@@ -11,9 +11,156 @@ from models import JobStatus
 
 logger = logging.getLogger(__name__)
 
-# Customer Agent ID for migration decisions
-OPTIMIZER_AGENT_ID = "d32e7ebe-bedf-4887-85cb-1c740e1e3831"
+# Customer Agent IDs
+OPTIMIZER_AGENT_ID = "d32e7ebe-bedf-4887-85cb-1c740e1e3831"  # For migration decisions
+SCOUT_AGENT_ID = "88708788-ed0e-4306-a3eb-6de5878f3512"  # For spot instance pricing
 AGENT_API_URL = "https://api.emergentagent.com/v1/agent/invoke"
+
+
+def fetch_spot_instances_with_ai(model_name: str, datasize: str, workload_type: str, budget: float) -> list:
+    """
+    Use AI agent to fetch latest spot instance prices from AWS and GCP
+    
+    Args:
+        model_name: ML model name
+        datasize: Dataset size (e.g., "50GB", "2TB")
+        workload_type: Type of workload (Training, Inference, etc.)
+        budget: Budget in dollars
+    
+    Returns:
+        list: List of 6 instances (3 AWS + 3 GCP) with current spot prices
+    """
+    try:
+        prompt = f"""You are an expert at finding the best GPU spot instances for ML workloads. 
+
+TASK: Find the latest generation GPU spot instances with CURRENT PRICING from AWS and GCP.
+
+WORKLOAD REQUIREMENTS:
+- Model: {model_name}
+- Dataset Size: {datasize}
+- Workload Type: {workload_type}
+- Budget: ${budget}
+
+INSTRUCTIONS:
+1. Check AWS EC2 Spot Pricing: https://aws.amazon.com/ec2/spot/pricing/
+2. Check GCP Spot VM GPU Pricing: https://cloud.google.com/spot-vms/pricing?hl=en#gpu-pricing
+3. Focus on LATEST GENERATION instances (G5, G6, P4, P5 for AWS; A2, A3 for GCP)
+4. Return 3 instances from AWS and 3 from GCP
+5. Prioritize instances that match the workload requirements
+
+For Training/Fine-tuning workloads: Look for high compute GPUs (A100, A10G, V100)
+For Inference/Embeddings: Look for cost-effective GPUs (T4, A10G)
+
+Return ONLY a JSON array with EXACTLY 6 instances (3 AWS + 3 GCP):
+[
+  {{
+    "provider": "AWS",
+    "instance": "g5.xlarge",
+    "gpu": "1x A10G (24GB)",
+    "memory": "16GB",
+    "cost_per_hour": 0.526
+  }},
+  ...
+]
+
+IMPORTANT: Use ACTUAL CURRENT spot prices from the websites, not estimates.
+"""
+        
+        payload = {
+            "custom_agent_id": SCOUT_AGENT_ID,
+            "prompt": prompt,
+            "stream": False
+        }
+        
+        logger.info(f"Calling Scout AI agent {SCOUT_AGENT_ID} to fetch spot instance prices")
+        
+        response = requests.post(
+            AGENT_API_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=60  # Longer timeout for web scraping
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            agent_response = result.get('response', '')
+            
+            logger.info(f"Scout AI Agent Response: {agent_response[:300]}...")
+            
+            # Parse JSON array from response
+            import json
+            import re
+            
+            # Try to find JSON array
+            json_match = re.search(r'\[\s*\{.*?\}\s*\]', agent_response, re.DOTALL)
+            if json_match:
+                instances = json.loads(json_match.group())
+                
+                # Validate we have 6 instances
+                if len(instances) >= 6:
+                    logger.info(f"Scout AI: Successfully fetched {len(instances)} spot instances with current pricing")
+                    
+                    # Log some examples
+                    for i, inst in enumerate(instances[:3]):
+                        logger.info(f"  {i+1}. {inst['provider']} {inst['instance']} - ${inst['cost_per_hour']}/hr")
+                    
+                    return instances[:6]  # Return exactly 6
+                else:
+                    logger.warning(f"Scout AI returned only {len(instances)} instances, expected 6")
+                    # Fall through to backup
+            else:
+                logger.warning("Could not parse JSON array from Scout AI response")
+        else:
+            logger.error(f"Scout AI API call failed: {response.status_code}")
+            
+    except Exception as e:
+        logger.error(f"Error calling Scout AI agent: {str(e)}")
+    
+    # Fallback to default instances if AI fails
+    logger.warning("Using fallback spot instance prices (AI fetch failed)")
+    return get_fallback_instances(datasize, workload_type)
+
+
+def get_fallback_instances(datasize: str, workload_type: str) -> list:
+    """Fallback spot instance list if AI agent fails"""
+    # Parse data size
+    datasize_value = float(''.join(filter(str.isdigit, datasize)))
+    datasize_unit = ''.join(filter(str.isalpha, datasize)).upper()
+    datasize_gb = datasize_value
+    if datasize_unit == 'TB':
+        datasize_gb = datasize_value * 1024
+    elif datasize_unit == 'MB':
+        datasize_gb = datasize_value / 1024
+    
+    # Default instances based on workload
+    if workload_type in ["Training", "Fine-tuning"]:
+        if datasize_gb > 20:
+            return [
+                {"provider": "AWS", "instance": "g5.12xlarge", "gpu": "4x A10G (24GB)", "memory": "192GB", "cost_per_hour": 5.67},
+                {"provider": "AWS", "instance": "g5.8xlarge", "gpu": "1x A10G (24GB)", "memory": "128GB", "cost_per_hour": 3.89},
+                {"provider": "AWS", "instance": "g4dn.12xlarge", "gpu": "4x T4 (16GB)", "memory": "192GB", "cost_per_hour": 3.912},
+                {"provider": "GCP", "instance": "a2-highgpu-4g", "gpu": "4x A100 (40GB)", "memory": "340GB", "cost_per_hour": 14.69},
+                {"provider": "GCP", "instance": "a2-highgpu-2g", "gpu": "2x A100 (40GB)", "memory": "170GB", "cost_per_hour": 7.35},
+                {"provider": "GCP", "instance": "n1-highmem-16-v100", "gpu": "4x V100 (16GB)", "memory": "104GB", "cost_per_hour": 9.76},
+            ]
+        else:
+            return [
+                {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006},
+                {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526},
+                {"provider": "AWS", "instance": "g5.2xlarge", "gpu": "1x A10G (24GB)", "memory": "32GB", "cost_per_hour": 1.212},
+                {"provider": "GCP", "instance": "n1-standard-8-t4", "gpu": "1x T4 (16GB)", "memory": "30GB", "cost_per_hour": 0.71},
+                {"provider": "GCP", "instance": "n1-standard-4-t4", "gpu": "1x T4 (16GB)", "memory": "15GB", "cost_per_hour": 0.58},
+                {"provider": "GCP", "instance": "a2-highgpu-1g", "gpu": "1x A100 (40GB)", "memory": "85GB", "cost_per_hour": 3.67},
+            ]
+    else:
+        return [
+            {"provider": "AWS", "instance": "g5.xlarge", "gpu": "1x A10G (24GB)", "memory": "16GB", "cost_per_hour": 1.006},
+            {"provider": "AWS", "instance": "g4dn.xlarge", "gpu": "1x T4 (16GB)", "memory": "16GB", "cost_per_hour": 0.526},
+            {"provider": "AWS", "instance": "g5.2xlarge", "gpu": "1x A10G (24GB)", "memory": "32GB", "cost_per_hour": 1.212},
+            {"provider": "GCP", "instance": "n1-standard-4-t4", "gpu": "1x T4 (16GB)", "memory": "15GB", "cost_per_hour": 0.58},
+            {"provider": "GCP", "instance": "n1-standard-8-t4", "gpu": "1x T4 (16GB)", "memory": "30GB", "cost_per_hour": 0.71},
+            {"provider": "GCP", "instance": "a2-highgpu-1g", "gpu": "1x A100 (40GB)", "memory": "85GB", "cost_per_hour": 3.67},
+        ]
 
 
 def validate_migration_with_ai(job: dict, new_instance: dict, current_instance: dict, cost_savings_percent: float) -> bool:
