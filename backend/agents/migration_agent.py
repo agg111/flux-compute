@@ -77,16 +77,33 @@ async def migration_with_checkpoint(workload_id: str, target_resource: dict, opt
         logger.info(f"Migration with Checkpoint: ✓ Training checkpointed to S3")
         
         # Phase 2: Provision new instance with training script
-        logger.info(f"Migration with Checkpoint: Phase 2 - Provisioning new instance {target_resource['instance']}")
+        # Check if this is a migration (not initial provision) and use GCP
+        current_job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+        current_migration = current_job.get('migration_details', {})
+        is_migration = current_migration.get('ec2_instance_id') is not None
         
-        test_instance_type = 't3.micro'  # Still using t3.micro for testing
-        
-        ec2_result = await asyncio.to_thread(
-            provision_ec2_instance,
-            test_instance_type,
-            workload_id,
-            True  # deploy_training=True, will resume from checkpoint
-        )
+        if is_migration and target_resource.get('provider') == 'GCP':
+            # Migrate to GCP
+            logger.info(f"Migration with Checkpoint: Phase 2 - Provisioning GCP instance {target_resource['instance']}")
+            from utils.aws_utils import provision_gcp_instance
+            
+            ec2_result = await asyncio.to_thread(
+                provision_gcp_instance,
+                'e2-micro',  # GCP equivalent of t3.micro
+                workload_id,
+                True  # deploy_training=True
+            )
+        else:
+            # Initial provision or AWS migration
+            logger.info(f"Migration with Checkpoint: Phase 2 - Provisioning AWS instance {target_resource['instance']}")
+            test_instance_type = 't3.micro'
+            
+            ec2_result = await asyncio.to_thread(
+                provision_ec2_instance,
+                test_instance_type,
+                workload_id,
+                True  # deploy_training=True, will resume from checkpoint
+            )
         
         if ec2_result.get('status') == 'error':
             logger.error(f"Migration with Checkpoint: Failed to provision new instance")
