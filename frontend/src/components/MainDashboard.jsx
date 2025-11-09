@@ -590,6 +590,43 @@ const MainDashboard = () => {
                         </div>
                       )}
 
+                      {/* Deployment & Health Check Details */}
+                      {job.deployment_details && job.deployment_details.status === 'success' && (
+                        <div className="mt-3 p-3 bg-slate-800 border border-green-900 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-400" />
+                            <span className="text-sm font-semibold text-green-400">Deployment Ready</span>
+                          </div>
+                          <div className="space-y-2">
+                            {/* Health Checks */}
+                            <div className="space-y-1 text-xs">
+                              {job.deployment_details.health_checks && job.deployment_details.health_checks.map((check, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-slate-300">
+                                  <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />
+                                  <span>{check.check}</span>
+                                </div>
+                              ))}
+                            </div>
+                            {/* Endpoint */}
+                            {job.deployment_details.endpoint_url && (
+                              <div className="pt-2 border-t border-slate-700">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-400">Endpoint:</span>
+                                  <a 
+                                    href={job.deployment_details.endpoint_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 font-mono"
+                                  >
+                                    {job.deployment_details.endpoint_url}
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Migration Details */}
                       {job.migration_details && job.migration_details.status === 'success' && (
                         <div className="mt-3 p-3 bg-slate-800 border border-green-900 rounded-lg">
