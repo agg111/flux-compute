@@ -2,11 +2,10 @@
 """
 Linear Regression Training Script with S3 Checkpointing
 This script runs on EC2 instances and saves checkpoint to S3 only when migration is requested
-Checkpoints are saved in JSON format for portability and readability
 """
 
 import numpy as np
-import pickle  # Keep for backward compatibility with old checkpoints
+import pickle
 import time
 import json
 import os
