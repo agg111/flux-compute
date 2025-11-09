@@ -592,6 +592,42 @@ const MainDashboard = () => {
                         </div>
                       )}
 
+                      {/* Endpoint Routing (UserProxy) */}
+                      {job.proxy_config && job.proxy_config.status === 'active' && (
+                        <div className="mt-3 p-3 bg-slate-800 border border-purple-900 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Activity className="w-4 h-4 text-purple-400" />
+                            <span className="text-sm font-semibold text-purple-400">Active Endpoint</span>
+                          </div>
+                          <div className="space-y-2 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Current Endpoint:</span>
+                              <a 
+                                href={job.proxy_config.active_endpoint} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-400 hover:text-blue-300 font-mono"
+                              >
+                                {job.proxy_config.active_endpoint}
+                              </a>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Traffic Distribution:</span>
+                              <span className="text-green-400 font-semibold">{job.proxy_config.traffic_distribution.new_instance}% to new instance</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Routing Strategy:</span>
+                              <span className="text-slate-300 capitalize">{job.proxy_config.routing_strategy}</span>
+                            </div>
+                            {job.proxy_config.endpoint_history && job.proxy_config.endpoint_history.length > 0 && (
+                              <div className="pt-2 border-t border-slate-700">
+                                <span className="text-slate-400">Previous endpoints: {job.proxy_config.endpoint_history.length}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Deployment & Health Check Details */}
                       {job.deployment_details && job.deployment_details.status === 'success' && (
                         <div className="mt-3 p-3 bg-slate-800 border border-green-900 rounded-lg">
