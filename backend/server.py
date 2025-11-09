@@ -66,6 +66,49 @@ if aws_access_key and aws_secret_key:
     except Exception as e:
         print(f"Failed to initialize AWS clients: {str(e)}")
 
+# S3 bucket for checkpoints
+S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'ml-workload-checkpoints-gpu-scout')
+
+# Ensure S3 bucket exists
+def ensure_s3_bucket():
+    """Ensure S3 bucket exists for storing checkpoints"""
+    try:
+        if not s3_client:
+            return False
+        
+        # Check if bucket exists
+        try:
+            s3_client.head_bucket(Bucket=S3_BUCKET_NAME)
+            print(f"S3 bucket {S3_BUCKET_NAME} already exists")
+            return True
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            if error_code == '404':
+                # Bucket doesn't exist, create it
+                try:
+                    if aws_region == 'us-east-1':
+                        s3_client.create_bucket(Bucket=S3_BUCKET_NAME)
+                    else:
+                        s3_client.create_bucket(
+                            Bucket=S3_BUCKET_NAME,
+                            CreateBucketConfiguration={'LocationConstraint': aws_region}
+                        )
+                    print(f"Created S3 bucket: {S3_BUCKET_NAME}")
+                    return True
+                except ClientError as create_error:
+                    print(f"Failed to create S3 bucket: {str(create_error)}")
+                    return False
+            else:
+                print(f"Error checking S3 bucket: {str(e)}")
+                return False
+    except Exception as e:
+        print(f"Error ensuring S3 bucket: {str(e)}")
+        return False
+
+# Initialize S3 bucket on startup
+if s3_client:
+    ensure_s3_bucket()
+
 # Create the main app without a prefix
 app = FastAPI()
 
