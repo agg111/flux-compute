@@ -19,6 +19,144 @@ logger = logging.getLogger(__name__)
 
 # Customer Agent ID for optimization decisions
 OPTIMIZER_AGENT_ID = "d32e7ebe-bedf-4887-85cb-1c740e1e3831"
+AGENT_API_URL = "https://api.emergentagent.com/v1/agent/invoke"
+
+
+def analyze_with_ai_agent(workload_details: dict, available_instances: list, current_instance: dict = None) -> dict:
+    """
+    Use AI agent to analyze workload and instances for migration decision
+    
+    Args:
+        workload_details: Details about the ML workload (model, datasize, type, etc.)
+        available_instances: List of available GPU instances with specs and costs
+        current_instance: Current instance details if any (for migration decisions)
+    
+    Returns:
+        dict with recommendation, selected_instance, reasoning, and should_migrate
+    """
+    try:
+        # Prepare prompt for the AI agent
+        prompt = f"""You are an expert GPU optimization agent. Analyze the following ML workload and available GPU instances to make the best decision.
+
+WORKLOAD DETAILS:
+- Model: {workload_details.get('model_name', 'N/A')}
+- Data Size: {workload_details.get('datasize', 'N/A')}
+- Workload Type: {workload_details.get('workload_type', 'N/A')}
+- Duration: {workload_details.get('duration', 'N/A')}
+- Budget: ${workload_details.get('budget', 'N/A')}
+- Model Details: {workload_details.get('model_details', {})}
+
+AVAILABLE INSTANCES:
+"""
+        for idx, instance in enumerate(available_instances, 1):
+            prompt += f"\n{idx}. {instance['provider']} {instance['instance']}"
+            prompt += f"\n   - GPU: {instance['gpu']}"
+            prompt += f"\n   - Memory: {instance['memory']}"
+            prompt += f"\n   - Cost: ${instance['cost_per_hour']}/hour"
+        
+        if current_instance:
+            prompt += f"\n\nCURRENT INSTANCE:\n- {current_instance['provider']} {current_instance['instance']}"
+            prompt += f"\n- GPU: {current_instance['gpu']}"
+            prompt += f"\n- Cost: ${current_instance['cost_per_hour']}/hour"
+            prompt += f"\n\nSHOULD WE MIGRATE? Consider cost savings, performance impact, and migration overhead."
+        else:
+            prompt += f"\n\nSELECT THE BEST INSTANCE for this workload considering:"
+        
+        prompt += """
+1. Cost efficiency
+2. GPU performance match for the model size and type
+3. Memory requirements
+4. Workload type (Training needs more compute than Inference)
+
+Provide your analysis in this exact JSON format:
+{
+    "selected_instance_index": <number 1-6>,
+    "should_migrate": <true/false>,
+    "reasoning": "<brief explanation>",
+    "cost_savings_percent": <number or null>,
+    "confidence_score": <0-100>
+}
+"""
+        
+        # Call the AI agent
+        payload = {
+            "custom_agent_id": OPTIMIZER_AGENT_ID,
+            "prompt": prompt,
+            "stream": False
+        }
+        
+        logger.info(f"Calling AI agent {OPTIMIZER_AGENT_ID} for optimization analysis")
+        
+        response = requests.post(
+            AGENT_API_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            agent_response = result.get('response', '')
+            
+            logger.info(f"AI Agent Response: {agent_response[:200]}...")
+            
+            # Try to parse JSON response
+            import json
+            import re
+            
+            # Extract JSON from response
+            json_match = re.search(r'\{[^{}]*"selected_instance_index"[^{}]*\}', agent_response, re.DOTALL)
+            if json_match:
+                analysis = json.loads(json_match.group())
+                
+                # Get the selected instance
+                selected_idx = analysis.get('selected_instance_index', 1) - 1  # Convert to 0-based index
+                if 0 <= selected_idx < len(available_instances):
+                    selected_instance = available_instances[selected_idx]
+                else:
+                    selected_instance = available_instances[0]  # Default to first
+                
+                return {
+                    'selected_instance': selected_instance,
+                    'should_migrate': analysis.get('should_migrate', True),
+                    'reasoning': analysis.get('reasoning', 'AI agent recommendation'),
+                    'cost_savings_percent': analysis.get('cost_savings_percent'),
+                    'confidence_score': analysis.get('confidence_score', 80),
+                    'ai_powered': True
+                }
+            else:
+                # Fallback if JSON parsing fails
+                logger.warning("Could not parse JSON from AI agent response, using fallback")
+                return {
+                    'selected_instance': min(available_instances, key=lambda x: x['cost_per_hour']),
+                    'should_migrate': True,
+                    'reasoning': 'Fallback to cheapest option (AI parsing failed)',
+                    'cost_savings_percent': None,
+                    'confidence_score': 50,
+                    'ai_powered': False
+                }
+        else:
+            logger.error(f"AI agent API call failed: {response.status_code}")
+            return {
+                'selected_instance': min(available_instances, key=lambda x: x['cost_per_hour']),
+                'should_migrate': True,
+                'reasoning': 'Fallback to cheapest option (API failed)',
+                'cost_savings_percent': None,
+                'confidence_score': 50,
+                'ai_powered': False
+            }
+            
+    except Exception as e:
+        logger.error(f"Error calling AI agent: {str(e)}")
+        # Fallback to simple cost-based selection
+        return {
+            'selected_instance': min(available_instances, key=lambda x: x['cost_per_hour']),
+            'should_migrate': True,
+            'reasoning': f'Fallback to cheapest option (Error: {str(e)})',
+            'cost_savings_percent': None,
+            'confidence_score': 50,
+            'ai_powered': False
+        }
 
 
 async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
