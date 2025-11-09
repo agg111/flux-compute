@@ -42,15 +42,25 @@ print(f"Note: Checkpoints saved to S3 only when migration is requested")
 
 
 def save_checkpoint_to_s3(checkpoint_data, iteration):
-    """Save checkpoint to S3 as JSON"""
+    """Save checkpoint to S3 in both pickle and JSON formats"""
     try:
-        checkpoint_key = f"checkpoints/{WORKLOAD_ID}/checkpoint_{iteration}.json"
+        checkpoint_key_pkl = f"checkpoints/{WORKLOAD_ID}/checkpoint_{iteration}.pkl"
+        checkpoint_key_json = f"checkpoints/{WORKLOAD_ID}/checkpoint_{iteration}.json"
         metadata_key = f"checkpoints/{WORKLOAD_ID}/metadata.json"
         
         # Extract model weights and convert to JSON-serializable format
         model = checkpoint_data['model']
         
-        # Create JSON-serializable checkpoint
+        # 1. Save as pickle (original format, most reliable for model restoration)
+        checkpoint_bytes = pickle.dumps(checkpoint_data)
+        s3_client.put_object(
+            Bucket=S3_BUCKET,
+            Key=checkpoint_key_pkl,
+            Body=checkpoint_bytes
+        )
+        print(f"✓ Pickle checkpoint saved: {checkpoint_key_pkl}")
+        
+        # 2. Save as JSON (human-readable, portable)
         json_checkpoint = {
             'workload_id': WORKLOAD_ID,
             'iteration': checkpoint_data['iteration'],
@@ -70,21 +80,22 @@ def save_checkpoint_to_s3(checkpoint_data, iteration):
             'migration_checkpoint': checkpoint_data.get('migration_checkpoint', False)
         }
         
-        # Save checkpoint as JSON
         s3_client.put_object(
             Bucket=S3_BUCKET,
-            Key=checkpoint_key,
+            Key=checkpoint_key_json,
             Body=json.dumps(json_checkpoint, indent=2)
         )
+        print(f"✓ JSON checkpoint saved: {checkpoint_key_json}")
         
-        # Save metadata
+        # 3. Save metadata with both formats
         metadata = {
             'workload_id': WORKLOAD_ID,
             'iteration': iteration,
             'timestamp': datetime.now().isoformat(),
-            'checkpoint_key': checkpoint_key,
+            'checkpoint_key_pickle': checkpoint_key_pkl,
+            'checkpoint_key_json': checkpoint_key_json,
             'total_iterations': TOTAL_ITERATIONS,
-            'format': 'json'
+            'formats': ['pickle', 'json']
         }
         s3_client.put_object(
             Bucket=S3_BUCKET,
@@ -92,7 +103,7 @@ def save_checkpoint_to_s3(checkpoint_data, iteration):
             Body=json.dumps(metadata, indent=2)
         )
         
-        print(f"✓ Checkpoint saved to S3 as JSON: {checkpoint_key}")
+        print(f"✓ Checkpoints saved to S3 (pickle + JSON): iteration {iteration}")
         return True
     except Exception as e:
         print(f"✗ Error saving checkpoint: {str(e)}")
