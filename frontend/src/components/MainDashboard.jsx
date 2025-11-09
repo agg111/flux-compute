@@ -586,6 +586,26 @@ const MainDashboard = () => {
                         </div>
                       )}
 
+                      {/* Migration Details */}
+                      {job.migration_details && job.migration_details.status === 'success' && (
+                        <div className="mt-3 p-3 bg-slate-800 border border-green-900 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-400" />
+                            <span className="text-sm font-semibold text-green-400">Migration Complete</span>
+                          </div>
+                          <div className="space-y-1 text-xs text-slate-400">
+                            <div className="flex justify-between">
+                              <span>Provisioned:</span>
+                              <span className="text-slate-300">{job.migration_details.target_instance}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Status:</span>
+                              <span className="text-green-400">Successfully migrated</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <p className="text-xs text-slate-500" data-testid={`job-created-at-${job.workload_id}`}>
                         Created {format(new Date(job.created_at), "PPp")}
                       </p>
