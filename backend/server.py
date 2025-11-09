@@ -1142,7 +1142,8 @@ async def user_proxy_agent(workload_id: str, deployment_details: dict, migration
             logger.info(f"UserProxy Agent: ✓ Old instance removed from rotation")
         
         # Build proxy configuration
-        endpoint_history = job.get('proxy_config', {}).get('endpoint_history', [])
+        proxy_config_existing = job.get('proxy_config') or {}
+        endpoint_history = proxy_config_existing.get('endpoint_history', [])
         
         # Add old endpoint to history if it exists
         if old_endpoint:
