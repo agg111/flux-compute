@@ -333,6 +333,136 @@ def update_workload_in_supabase(workload_id: str, status: str = None, workload_d
         return None
 
 
+def ensure_security_group():
+    """Ensure a security group exists for ML workloads"""
+    try:
+        if not ec2_client:
+            logger.error("EC2 client not initialized")
+            return None
+        
+        security_group_name = "ml-workload-sg"
+        
+        # Check if security group exists
+        try:
+            response = ec2_client.describe_security_groups(
+                GroupNames=[security_group_name]
+            )
+            sg_id = response['SecurityGroups'][0]['GroupId']
+            logger.info(f"Using existing security group: {sg_id}")
+            return sg_id
+        except ClientError as e:
+            if 'InvalidGroup.NotFound' not in str(e):
+                raise
+        
+        # Create security group
+        vpc_response = ec2_client.describe_vpcs(Filters=[{'Name': 'isDefault', 'Values': ['true']}])
+        vpc_id = vpc_response['Vpcs'][0]['VpcId'] if vpc_response['Vpcs'] else None
+        
+        sg_response = ec2_client.create_security_group(
+            GroupName=security_group_name,
+            Description='Security group for ML workload instances',
+            VpcId=vpc_id
+        )
+        sg_id = sg_response['GroupId']
+        
+        # Allow SSH access
+        ec2_client.authorize_security_group_ingress(
+            GroupId=sg_id,
+            IpPermissions=[
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 22,
+                    'ToPort': 22,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0', 'Description': 'SSH access'}]
+                }
+            ]
+        )
+        
+        logger.info(f"Created security group: {sg_id}")
+        return sg_id
+        
+    except Exception as e:
+        logger.error(f"Error ensuring security group: {str(e)}")
+        return None
+
+
+def provision_ec2_instance(instance_type: str, workload_id: str) -> dict:
+    """Provision a real EC2 instance on AWS"""
+    try:
+        if not ec2_client or not ec2_resource:
+            logger.error("EC2 client not initialized")
+            return {"status": "error", "message": "AWS not configured"}
+        
+        # Ensure security group exists
+        sg_id = ensure_security_group()
+        if not sg_id:
+            return {"status": "error", "message": "Failed to create security group"}
+        
+        # Get latest Amazon Linux 2 AMI
+        ami_response = ec2_client.describe_images(
+            Filters=[
+                {'Name': 'name', 'Values': ['amzn2-ami-hvm-*-x86_64-gp2']},
+                {'Name': 'state', 'Values': ['available']}
+            ],
+            Owners=['amazon']
+        )
+        
+        if not ami_response['Images']:
+            return {"status": "error", "message": "No AMI found"}
+        
+        # Sort by creation date and get latest
+        latest_ami = sorted(ami_response['Images'], key=lambda x: x['CreationDate'], reverse=True)[0]
+        ami_id = latest_ami['ImageId']
+        
+        logger.info(f"Provisioning EC2 instance: {instance_type} with AMI {ami_id}")
+        
+        # Launch instance
+        instances = ec2_resource.create_instances(
+            ImageId=ami_id,
+            InstanceType=instance_type,
+            MinCount=1,
+            MaxCount=1,
+            SecurityGroupIds=[sg_id],
+            TagSpecifications=[
+                {
+                    'ResourceType': 'instance',
+                    'Tags': [
+                        {'Key': 'Name', 'Value': f'ml-workload-{workload_id[:8]}'},
+                        {'Key': 'WorkloadID', 'Value': workload_id},
+                        {'Key': 'ManagedBy', 'Value': 'ML-Optimizer'}
+                    ]
+                }
+            ]
+        )
+        
+        instance = instances[0]
+        instance_id = instance.id
+        
+        logger.info(f"EC2 instance created: {instance_id}, waiting for running state...")
+        
+        # Wait for instance to be running
+        instance.wait_until_running()
+        instance.reload()
+        
+        result = {
+            "status": "success",
+            "instance_id": instance_id,
+            "instance_type": instance_type,
+            "state": instance.state['Name'],
+            "public_ip": instance.public_ip_address,
+            "private_ip": instance.private_ip_address,
+            "availability_zone": instance.placement['AvailabilityZone'],
+            "launch_time": instance.launch_time.isoformat()
+        }
+        
+        logger.info(f"EC2 instance {instance_id} is running at {instance.public_ip_address}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error provisioning EC2 instance: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
 def get_all_workloads_with_plans():
     """Get all workloads with their current optimization plans for re-optimization"""
     try:
