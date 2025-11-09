@@ -81,6 +81,7 @@ class JobStatus(str, Enum):
     MIGRATING = "Migrating"
     DEPLOYING = "Deploying"
     HEALTH_CHECK = "Health Check"
+    UPDATING_ENDPOINT = "Updating Endpoint"
     RUNNING = "Running"
     COMPLETED = "Completed"
     FAILED = "Failed"
