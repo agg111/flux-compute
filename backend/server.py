@@ -564,7 +564,7 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         'recommended_memory': best_option["memory"],
         'estimated_cost': float(estimated_cost)
     }
-    update_workload_in_supabase(workload_id, status="RUNNING", workload_data=workload_json)
+    update_workload_in_supabase(workload_id, status="RUNNING", workload_data=workload_json, plan_id=new_plan_id)
     
     logger.info(f"Optimizer Agent: Selected {best_option['instance']} for workload {workload_id}")
     
