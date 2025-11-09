@@ -171,7 +171,9 @@ const MainDashboard = () => {
       "Found Better Deal": "bg-green-900/50 text-green-200 border-green-700",
       "Provisioning": "bg-purple-900/50 text-purple-200 border-purple-700",
       "Migrating": "bg-blue-900/50 text-blue-200 border-blue-700",
-      "Running": "bg-blue-900/50 text-blue-200 border-blue-700",
+      "Deploying": "bg-blue-900/50 text-blue-200 border-blue-700",
+      "Health Check": "bg-green-900/50 text-green-200 border-green-700",
+      "Running": "bg-green-900/50 text-green-200 border-green-700",
       "Completed": "bg-slate-700 text-slate-200 border-slate-600",
       "Failed": "bg-slate-700 text-slate-200 border-slate-600",
       "Cancelled": "bg-slate-700 text-slate-200 border-slate-600"
@@ -187,7 +189,9 @@ const MainDashboard = () => {
       "Found Better Deal": <Sparkles className="w-4 h-4" />,
       "Provisioning": <Loader2 className="w-4 h-4 animate-spin" />,
       "Migrating": <Activity className="w-4 h-4 animate-spin" />,
-      "Running": <Activity className="w-4 h-4" />,
+      "Deploying": <Loader2 className="w-4 h-4 animate-spin" />,
+      "Health Check": <Activity className="w-4 h-4 animate-spin" />,
+      "Running": <CheckCircle2 className="w-4 h-4" />,
       "Completed": <CheckCircle2 className="w-4 h-4" />,
       "Failed": <XCircle className="w-4 h-4" />,
       "Cancelled": <AlertCircle className="w-4 h-4" />
