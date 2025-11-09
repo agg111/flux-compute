@@ -263,6 +263,62 @@ def terminate_ec2_instance(instance_id: str) -> dict:
         return {"status": "error", "message": str(e)}
 
 
+def provision_gcp_instance(instance_type: str, workload_id: str, deploy_training: bool = False) -> dict:
+    """Simulate GCP instance provisioning (for testing migration workflow)"""
+    try:
+        import uuid
+        from datetime import datetime, timezone
+        
+        # Simulate GCP instance creation
+        instance_id = f"gcp-instance-{uuid.uuid4().hex[:12]}"
+        
+        logger.info(f"Simulating GCP instance provisioning: {instance_type} with ID {instance_id}")
+        
+        # Simulate some delay for instance creation
+        import time
+        time.sleep(5)
+        
+        result = {
+            "status": "success",
+            "provider": "GCP",
+            "instance_id": instance_id,
+            "instance_type": instance_type,
+            "state": "running",
+            "public_ip": f"34.{uuid.uuid4().fields[0] % 256}.{uuid.uuid4().fields[1] % 256}.{uuid.uuid4().fields[2] % 256}",
+            "private_ip": f"10.{uuid.uuid4().fields[0] % 256}.{uuid.uuid4().fields[1] % 256}.{uuid.uuid4().fields[2] % 256}",
+            "zone": "us-central1-a",
+            "launch_time": datetime.now(timezone.utc).isoformat(),
+            "simulated": True
+        }
+        
+        logger.info(f"GCP instance {instance_id} is running (simulated) at {result['public_ip']}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error provisioning GCP instance: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+def terminate_gcp_instance(instance_id: str) -> dict:
+    """Simulate GCP instance termination"""
+    try:
+        logger.info(f"Simulating GCP instance termination: {instance_id}")
+        
+        import time
+        time.sleep(2)
+        
+        logger.info(f"GCP instance {instance_id} terminated (simulated)")
+        return {
+            "status": "success",
+            "instance_id": instance_id,
+            "state": "terminated"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error terminating GCP instance: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
 def create_checkpoint_request_flag(workload_id: str) -> bool:
     """Create checkpoint request flag in S3"""
     try:
