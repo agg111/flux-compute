@@ -22,8 +22,11 @@ def save_optimization_plan_to_supabase(workload_id: str, plan_data: dict):
             'updated_at': datetime.now(timezone.utc).isoformat()
         }
         
-        # Upsert the plan
-        result = supabase.table('optimization_plans').upsert(data).execute()
+        # Upsert the plan (update if exists, insert if not)
+        result = supabase.table('optimization_plans').upsert(
+            data, 
+            on_conflict='workload_id'
+        ).execute()
         
         if result.data and len(result.data) > 0:
             plan_id = result.data[0].get('id')
