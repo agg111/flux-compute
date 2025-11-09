@@ -4,11 +4,16 @@ Scout Agent - Searches for available GPU resources and monitors for better deals
 import asyncio
 import logging
 import random
+import requests
 from datetime import datetime, timezone
 from database import db
 from models import JobStatus
 
 logger = logging.getLogger(__name__)
+
+# Customer Agent ID for migration decisions
+OPTIMIZER_AGENT_ID = "d32e7ebe-bedf-4887-85cb-1c740e1e3831"
+AGENT_API_URL = "https://api.emergentagent.com/v1/agent/invoke"
 
 
 async def scout_agent(workload_id: str, model_name: str, datasize: str, workload_type: str, budget: float):
