@@ -598,7 +598,23 @@ const MainDashboard = () => {
                               <span>Provisioned:</span>
                               <span className="text-slate-300">{job.migration_details.target_instance}</span>
                             </div>
-                            <div className="flex justify-between">
+                            {job.migration_details.ec2_instance_id && (
+                              <>
+                                <div className="flex justify-between">
+                                  <span>EC2 Instance:</span>
+                                  <span className="text-slate-300 font-mono">{job.migration_details.ec2_instance_id}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Public IP:</span>
+                                  <span className="text-blue-400 font-mono">{job.migration_details.ec2_public_ip}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Zone:</span>
+                                  <span className="text-slate-300">{job.migration_details.ec2_availability_zone}</span>
+                                </div>
+                              </>
+                            )}
+                            <div className="flex justify-between pt-1 border-t border-slate-700">
                               <span>Status:</span>
                               <span className="text-green-400">Successfully migrated</span>
                             </div>
