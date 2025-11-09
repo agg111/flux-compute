@@ -42,73 +42,37 @@ print(f"Note: Checkpoints saved to S3 only when migration is requested")
 
 
 def save_checkpoint_to_s3(checkpoint_data, iteration):
-    """Save checkpoint to S3 in both pickle and JSON formats"""
+    """Save checkpoint to S3 as pickle"""
     try:
-        checkpoint_key_pkl = f"checkpoints/{WORKLOAD_ID}/checkpoint_{iteration}.pkl"
-        checkpoint_key_json = f"checkpoints/{WORKLOAD_ID}/checkpoint_{iteration}.json"
+        checkpoint_key = f"checkpoints/{WORKLOAD_ID}/checkpoint_{iteration}.pkl"
         metadata_key = f"checkpoints/{WORKLOAD_ID}/metadata.json"
         
-        # Extract model weights and convert to JSON-serializable format
-        model = checkpoint_data['model']
-        
-        # 1. Save as pickle (original format, most reliable for model restoration)
+        # Save checkpoint pickle
         checkpoint_bytes = pickle.dumps(checkpoint_data)
         s3_client.put_object(
             Bucket=S3_BUCKET,
-            Key=checkpoint_key_pkl,
+            Key=checkpoint_key,
             Body=checkpoint_bytes
         )
-        print(f"✓ Pickle checkpoint saved: {checkpoint_key_pkl}")
         
-        # 2. Save as JSON (human-readable, portable)
-        json_checkpoint = {
-            'workload_id': WORKLOAD_ID,
-            'iteration': checkpoint_data['iteration'],
-            'timestamp': checkpoint_data['timestamp'],
-            'model_weights': {
-                'coef': model.coef_.tolist(),  # Convert numpy array to list
-                'intercept': float(model.intercept_),  # Convert to native Python float
-                'n_iter': int(model.n_iter_) if hasattr(model, 'n_iter_') else 0,
-                't': int(model.t_) if hasattr(model, 't_') else 0
-            },
-            'model_params': {
-                'learning_rate': model.learning_rate if hasattr(model, 'learning_rate') else 'constant',
-                'eta0': float(model.eta0) if hasattr(model, 'eta0') else 0.01
-            },
-            'training_history': checkpoint_data['history'],
-            'X_train_shape': list(checkpoint_data['X_train_shape']),
-            'migration_checkpoint': checkpoint_data.get('migration_checkpoint', False)
-        }
-        
-        s3_client.put_object(
-            Bucket=S3_BUCKET,
-            Key=checkpoint_key_json,
-            Body=json.dumps(json_checkpoint, indent=2)
-        )
-        print(f"✓ JSON checkpoint saved: {checkpoint_key_json}")
-        
-        # 3. Save metadata with both formats
+        # Save metadata
         metadata = {
             'workload_id': WORKLOAD_ID,
             'iteration': iteration,
             'timestamp': datetime.now().isoformat(),
-            'checkpoint_key_pickle': checkpoint_key_pkl,
-            'checkpoint_key_json': checkpoint_key_json,
-            'total_iterations': TOTAL_ITERATIONS,
-            'formats': ['pickle', 'json']
+            'checkpoint_key': checkpoint_key,
+            'total_iterations': TOTAL_ITERATIONS
         }
         s3_client.put_object(
             Bucket=S3_BUCKET,
             Key=metadata_key,
-            Body=json.dumps(metadata, indent=2)
+            Body=json.dumps(metadata)
         )
         
-        print(f"✓ Checkpoints saved to S3 (pickle + JSON): iteration {iteration}")
+        print(f"✓ Checkpoint saved to S3: {checkpoint_key}")
         return True
     except Exception as e:
         print(f"✗ Error saving checkpoint: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return False
 
 
