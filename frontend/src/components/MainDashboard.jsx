@@ -192,6 +192,7 @@ const MainDashboard = () => {
       "Migrating": <Activity className="w-4 h-4 animate-spin" />,
       "Deploying": <Loader2 className="w-4 h-4 animate-spin" />,
       "Health Check": <Activity className="w-4 h-4 animate-spin" />,
+      "Updating Endpoint": <Loader2 className="w-4 h-4 animate-spin" />,
       "Running": <CheckCircle2 className="w-4 h-4" />,
       "Completed": <CheckCircle2 className="w-4 h-4" />,
       "Failed": <XCircle className="w-4 h-4" />,
