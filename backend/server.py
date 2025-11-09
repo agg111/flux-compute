@@ -519,14 +519,17 @@ def provision_ec2_instance(instance_type: str, workload_id: str, deploy_training
         
         logger.info(f"Provisioning EC2 instance: {instance_type} with AMI {ami_id}")
         
+        # Generate user-data script if deploying training
+        user_data = generate_user_data_script(workload_id) if deploy_training else None
+        
         # Launch instance
-        instances = ec2_resource.create_instances(
-            ImageId=ami_id,
-            InstanceType=instance_type,
-            MinCount=1,
-            MaxCount=1,
-            SecurityGroupIds=[sg_id],
-            TagSpecifications=[
+        launch_params = {
+            'ImageId': ami_id,
+            'InstanceType': instance_type,
+            'MinCount': 1,
+            'MaxCount': 1,
+            'SecurityGroupIds': [sg_id],
+            'TagSpecifications': [
                 {
                     'ResourceType': 'instance',
                     'Tags': [
@@ -536,7 +539,13 @@ def provision_ec2_instance(instance_type: str, workload_id: str, deploy_training
                     ]
                 }
             ]
-        )
+        }
+        
+        if user_data:
+            launch_params['UserData'] = user_data
+            logger.info(f"Deploying training script via user-data")
+        
+        instances = ec2_resource.create_instances(**launch_params)
         
         instance = instances[0]
         instance_id = instance.id
