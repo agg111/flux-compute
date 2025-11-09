@@ -1089,22 +1089,38 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         migration_details["validation_test"] = validation_test
         migration_details["test_instance_type"] = test_instance_type
         
-        # Phase 3: Migration complete, now trigger Deployer Agent
+        # Phase 3: Validation complete - Set to Running
         await db.jobs.update_one(
             {"workload_id": workload_id},
             {
                 "$set": {
+                    "status": JobStatus.RUNNING,
                     "migration_details": migration_details,
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
             }
         )
         
-        logger.info(f"Migration Agent: Successfully migrated workload {workload_id} to {target_resource['provider']} {target_resource['instance']}")
-        logger.info(f"Migration Agent: Triggering Deployer Agent for workload {workload_id}")
+        # Update Supabase with complete migration details including validation test
+        job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+        workload_json = {
+            'model_name': job['model_name'],
+            'datasize': job['datasize'],
+            'workload_type': job['workload_type'],
+            'duration': job['duration'],
+            'budget': job['budget'],
+            'precision': job.get('precision'),
+            'framework': job.get('framework'),
+            'scout_results': job.get('scout_results'),
+            'optimizer_results': optimizer_results,
+            'recommended_gpu': target_resource["gpu"],
+            'recommended_memory': target_resource["memory"],
+            'estimated_cost': optimizer_results.get('estimated_cost'),
+            'migration_details': migration_details
+        }
+        update_workload_in_supabase(workload_id, status="COMPLETE", workload_data=workload_json)
         
-        # Trigger Deployer Agent
-        asyncio.create_task(deployer_agent(workload_id, target_resource, migration_details, optimizer_results))
+        logger.info(f"Migration Agent: ✅ Validation test passed! Workload {workload_id} is running on {test_instance_type}")
         
     except Exception as e:
         logger.error(f"Migration Agent: Error during migration - {str(e)}")
