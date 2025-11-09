@@ -1,8 +1,10 @@
 """
 Optimizer Agent - Selects the best GPU resource based on cost and performance
+Uses AI agent for intelligent migration decisions
 """
 import asyncio
 import logging
+import requests
 from datetime import datetime, timezone
 from database import db
 from models import JobStatus
@@ -14,6 +16,9 @@ from utils.supabase_utils import (
 from utils.helpers import fetch_huggingface_model_details
 
 logger = logging.getLogger(__name__)
+
+# Customer Agent ID for optimization decisions
+OPTIMIZER_AGENT_ID = "d32e7ebe-bedf-4887-85cb-1c740e1e3831"
 
 
 async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
