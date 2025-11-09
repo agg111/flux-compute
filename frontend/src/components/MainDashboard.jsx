@@ -92,6 +92,21 @@ const MainDashboard = () => {
     fetchJobs();
   }, []);
 
+  const fetchMigrations = async (workloadId) => {
+    if (migrations[workloadId]) return; // Already fetched
+    
+    setLoadingMigrations(prev => ({ ...prev, [workloadId]: true }));
+    
+    try {
+      const response = await axios.get(`${API}/jobs/${workloadId}/migrations`);
+      setMigrations(prev => ({ ...prev, [workloadId]: response.data }));
+    } catch (error) {
+      console.error(`Error fetching migrations for ${workloadId}:`, error);
+    } finally {
+      setLoadingMigrations(prev => ({ ...prev, [workloadId]: false }));
+    }
+  };
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
