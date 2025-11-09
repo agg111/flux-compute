@@ -234,6 +234,16 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     max_cost = max([opt["cost_per_hour"] for opt in suitable_options])
     optimization_percentage = round(((max_cost - best_option["cost_per_hour"]) / max_cost) * 100, 1) if len(suitable_options) > 1 and max_cost > 0 else 0
     
+    # Check if this is a re-optimization (subsequent run)
+    job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
+    is_reoptimization = job.get('optimizer_results') is not None
+    
+    # For testing: Always migrate on subsequent runs to test GCP migration
+    should_migrate_override = True if is_reoptimization else ai_analysis.get('should_migrate', True)
+    
+    if is_reoptimization:
+        logger.info(f"Optimizer Agent: Re-optimization detected - forcing migration for testing (should_migrate=True)")
+    
     optimizer_results = {
         "recommended_resource": best_option,
         "estimated_cost": round(estimated_cost, 2),
@@ -244,10 +254,11 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
         "model_insights": model_details,
         "ai_analysis": {
             "agent_id": OPTIMIZER_AGENT_ID,
-            "reasoning": ai_reasoning,
+            "reasoning": ai_reasoning if not is_reoptimization else "Forced migration for testing - switching to GCP instance",
             "confidence_score": ai_confidence,
             "ai_powered": ai_powered,
-            "should_migrate": ai_analysis.get('should_migrate', True)  # Migration decision from AI
+            "should_migrate": should_migrate_override,  # Override for testing
+            "is_reoptimization": is_reoptimization
         }
     }
     
