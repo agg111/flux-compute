@@ -248,7 +248,7 @@ def get_optimization_plan_from_supabase(workload_id: str) -> dict:
         return None
 
 
-def save_workload_to_supabase(workload_id: str, workload_data: dict, status: str = "PENDING"):
+def save_workload_to_supabase(workload_id: str, workload_data: dict, status: str = "PENDING", plan_id: int = None):
     """Save workload to Supabase with simplified structure"""
     try:
         if not supabase:
@@ -263,9 +263,12 @@ def save_workload_to_supabase(workload_id: str, workload_data: dict, status: str
             'updated_at': datetime.now(timezone.utc).isoformat()
         }
         
+        if plan_id:
+            data['plan_id'] = plan_id
+        
         # Upsert the workload
         result = supabase.table('workloads').upsert(data).execute()
-        logger.info(f"Saved workload to Supabase: {workload_id}")
+        logger.info(f"Saved workload to Supabase: {workload_id}, plan_id: {plan_id}")
         return result
         
     except Exception as e:
