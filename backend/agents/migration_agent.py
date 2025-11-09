@@ -325,23 +325,63 @@ async def migration_agent(workload_id: str, target_resource: dict, optimizer_res
         })
         logger.info(f"Migration Agent: ✓ Test data generated")
         
-        # Step 3: Run linear regression (actual 10 minutes)
+        # Step 3: Run actual linear regression for 10 minutes
         logger.info(f"Migration Agent: Running linear regression task for 10 minutes...")
-        await asyncio.sleep(600)  # 10 minutes = 600 seconds
+        
+        # Run actual linear regression in a thread to not block
+        def run_linear_regression():
+            import numpy as np
+            from sklearn.linear_model import SGDRegressor
+            from sklearn.metrics import mean_squared_error, r2_score
+            import time
+            
+            # Generate synthetic data
+            np.random.seed(42)
+            n_samples = 10000
+            n_features = 50
+            X = np.random.randn(n_samples, n_features)
+            true_coefficients = np.random.randn(n_features)
+            y = X.dot(true_coefficients) + np.random.randn(n_samples) * 0.1
+            
+            # Train model for 10 minutes
+            model = SGDRegressor(max_iter=1, warm_start=True, random_state=42)
+            start_time = time.time()
+            target_duration = 600  # 10 minutes
+            iteration = 0
+            
+            while (time.time() - start_time) < target_duration:
+                # Train for one iteration
+                model.partial_fit(X, y)
+                iteration += 1
+                
+                # Sleep a bit to spread out the training over 10 minutes
+                if iteration % 100 == 0:
+                    time.sleep(1)  # Small pause every 100 iterations
+            
+            # Final metrics
+            y_pred = model.predict(X)
+            mse = mean_squared_error(y, y_pred)
+            r2 = r2_score(y, y_pred)
+            elapsed_time = time.time() - start_time
+            
+            return {
+                "iterations": iteration,
+                "mse": float(mse),
+                "r2_score": float(r2),
+                "training_time_seconds": round(elapsed_time, 2)
+            }
+        
+        # Run the linear regression
+        metrics = await asyncio.to_thread(run_linear_regression)
         
         validation_test["steps"].append({
             "step": "Linear Regression Training",
             "status": "completed",
-            "details": "Trained model for 1000 iterations, MSE: 0.023",
-            "metrics": {
-                "iterations": 1000,
-                "mse": 0.023,
-                "r2_score": 0.987,
-                "training_time": "9m 45s"
-            },
+            "details": f"Trained model for {metrics['iterations']} iterations over 10 minutes",
+            "metrics": metrics,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
-        logger.info(f"Migration Agent: ✓ Linear regression completed successfully")
+        logger.info(f"Migration Agent: ✓ Linear regression completed successfully - {metrics['iterations']} iterations, MSE: {metrics['mse']:.4f}, R²: {metrics['r2_score']:.4f}")
         
         # Step 4: Validation
         await asyncio.sleep(1)
