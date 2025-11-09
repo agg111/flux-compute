@@ -200,28 +200,32 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
     if not suitable_options:
         suitable_options = available_resources  # Use all if none fit budget
     
-    # Use model details to make smarter selection
-    best_option = None
+    # Prepare workload details for AI agent
+    workload_details = {
+        'model_name': model_name,
+        'datasize': job['datasize'],
+        'workload_type': job['workload_type'],
+        'duration': job['duration'],
+        'budget': budget,
+        'model_details': model_details
+    }
     
-    # Check if model is large (70B+) and needs high-end GPUs
-    if model_details.get('size_billions', 0) >= 70 or '70b' in model_name.lower() or '65b' in model_name.lower():
-        # Prefer A100 GPUs for large models
-        a100_options = [opt for opt in suitable_options if 'A100' in opt['gpu']]
-        if a100_options:
-            best_option = min(a100_options, key=lambda x: x["cost_per_hour"])
-            logger.info(f"Optimizer Agent: Selected A100 for large model ({model_name})")
+    # Use AI agent to analyze and select best instance
+    logger.info(f"Optimizer Agent: Calling AI agent for intelligent instance selection")
+    ai_analysis = await asyncio.to_thread(
+        analyze_with_ai_agent,
+        workload_details,
+        suitable_options,
+        None  # No current instance for initial selection
+    )
     
-    # Check if it's a diffusion model
-    elif model_details.get('architecture') == 'Diffusion' or 'diffusion' in model_name.lower():
-        # Diffusion models benefit from A10G or T4
-        preferred_options = [opt for opt in suitable_options if 'A10G' in opt['gpu'] or 'T4' in opt['gpu']]
-        if preferred_options:
-            best_option = min(preferred_options, key=lambda x: x["cost_per_hour"])
-            logger.info(f"Optimizer Agent: Selected GPU optimized for diffusion model")
+    best_option = ai_analysis['selected_instance']
+    ai_reasoning = ai_analysis['reasoning']
+    ai_confidence = ai_analysis['confidence_score']
+    ai_powered = ai_analysis['ai_powered']
     
-    # Default: Select cheapest suitable option
-    if not best_option:
-        best_option = min(suitable_options, key=lambda x: x["cost_per_hour"])
+    logger.info(f"Optimizer Agent: AI selected {best_option['instance']} (Confidence: {ai_confidence}%)")
+    logger.info(f"Optimizer Agent: Reasoning: {ai_reasoning}")
     
     # Calculate estimated cost and optimization percentage
     estimated_cost = best_option["cost_per_hour"] * 2  # Estimate 2 hours
