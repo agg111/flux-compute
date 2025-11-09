@@ -246,7 +246,8 @@ async def optimizer_agent(workload_id: str, scout_results: dict, budget: float):
             "agent_id": OPTIMIZER_AGENT_ID,
             "reasoning": ai_reasoning,
             "confidence_score": ai_confidence,
-            "ai_powered": ai_powered
+            "ai_powered": ai_powered,
+            "should_migrate": ai_analysis.get('should_migrate', True)  # Migration decision from AI
         }
     }
     
