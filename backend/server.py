@@ -1063,6 +1063,9 @@ async def user_proxy_agent(workload_id: str, deployment_details: dict, migration
         # Get job details to fetch existing endpoint configuration
         job = await db.jobs.find_one({"workload_id": workload_id}, {"_id": 0})
         
+        if not job:
+            raise Exception(f"Job {workload_id} not found")
+        
         old_endpoint = None
         if job.get('proxy_config'):
             old_endpoint = job['proxy_config'].get('active_endpoint')
