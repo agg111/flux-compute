@@ -200,11 +200,11 @@ def fetch_huggingface_model_details(model_name: str) -> dict:
 
 
 def save_optimization_plan_to_supabase(workload_id: str, plan_data: dict):
-    """Save optimization plan to Supabase"""
+    """Save optimization plan to Supabase and return the plan ID"""
     try:
         if not supabase:
             logger.warning("Supabase not configured")
-            return
+            return None
         
         data = {
             'workload_id': workload_id,
@@ -215,8 +215,13 @@ def save_optimization_plan_to_supabase(workload_id: str, plan_data: dict):
         
         # Upsert the plan
         result = supabase.table('optimization_plans').upsert(data).execute()
-        logger.info(f"Saved optimization plan to Supabase for workload {workload_id}")
-        return result
+        
+        if result.data and len(result.data) > 0:
+            plan_id = result.data[0].get('id')
+            logger.info(f"Saved optimization plan to Supabase for workload {workload_id}, plan_id: {plan_id}")
+            return plan_id
+        
+        return None
         
     except Exception as e:
         logger.error(f"Error saving to Supabase: {str(e)}")
